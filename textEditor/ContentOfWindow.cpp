@@ -17,8 +17,6 @@ ContentOfWindow::~ContentOfWindow(void)
 
 void ContentOfWindow::processorWmChar(WORD wParam)
 {
-	//bug: character always add to end text, require that add according 
-	//caretPos лечение: вместо += заюзать insert
 	int index;
 	int lengthText = 0;
 	switch (wParam)
@@ -29,7 +27,11 @@ void ContentOfWindow::processorWmChar(WORD wParam)
 			calculateLengthLine();
 			index = xCaretPos + yCaretPos * lengthLine;
 			text.erase(index-1,1);
-			xCaretPos--;
+			
+			if (xCaretPos != 0)
+			{
+				xCaretPos--;
+			}
 		}
 		break;
 	case '\t':
@@ -126,51 +128,20 @@ void ContentOfWindow::printCharOnDC(int index)
 
 void ContentOfWindow::validateRectsForPaint()
 {
-	if (yCaretPos != 0)
-	{
-		RECT topRect;
-		topRect.left = 0;
-		topRect.top = 0;
-		topRect.right = lengthLine * xCharSize;
-		topRect.bottom = yCaretPos * yCharSize;
-		ValidateRect(hWnd,&topRect);
-	}
-	RECT beforeCaretRect;
-	beforeCaretRect.left = 0;
-	beforeCaretRect.top = yCaretPos * yCharSize;
-	beforeCaretRect.right = xCaretPos * xCharSize;
-	beforeCaretRect.bottom = yCaretPos * yCharSize + yCharSize;
-	ValidateRect(hWnd,&beforeCaretRect);
-
 	calculateEndTextPos();
-	RECT afterCaretRect;
-	afterCaretRect.left = beforeCaretRect.right;
-	afterCaretRect.top = beforeCaretRect.top;
-	if (endTextPos.y == yCaretPos)
-	{
-		afterCaretRect.right = endTextPos.x * xCharSize;
-		afterCaretRect.bottom = (endTextPos.y + 1) * yCharSize;
-	}
-	else
-	{
-		afterCaretRect.right = xClient;
-		afterCaretRect.bottom = beforeCaretRect.bottom;
+	RECT rect;
+	rect.left = 0;
+	rect.top = 0;
+	rect.right = xClient;
+	rect.bottom = endTextPos.y * yCharSize;
+	ValidateRect(hWnd, &rect);
 
-		RECT bottomRect;
-		bottomRect.left = 0;
-		bottomRect.top = beforeCaretRect.bottom;
-		bottomRect.right = xClient;
-		bottomRect.bottom = endTextPos.y * yCharSize;
-		ValidateRect(hWnd,&bottomRect);
-
-		RECT lastLineRect;
-		lastLineRect.left = 0;
-		lastLineRect.top = endTextPos.y * yCharSize;
-		lastLineRect.right = endTextPos.x * xCharSize;
-		lastLineRect.bottom = lastLineRect.top + yCharSize;
-		ValidateRect(hWnd,&lastLineRect);
-	}
-	ValidateRect(hWnd,&afterCaretRect);
+	RECT lastLineRect;
+	lastLineRect.left = 0;
+	lastLineRect.top = endTextPos.y * yCharSize;
+	lastLineRect.right = endTextPos.x * xCharSize;
+	lastLineRect.bottom = lastLineRect.top + yCharSize;
+	ValidateRect(hWnd,&lastLineRect);
 }
 
 void ContentOfWindow::calculateCaretPos(LPARAM lParam)
