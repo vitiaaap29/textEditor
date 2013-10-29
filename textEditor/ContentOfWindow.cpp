@@ -3,8 +3,8 @@
 ContentOfWindow::ContentOfWindow(HWND hWnd)
 {
 	this->hWnd = hWnd;
-	this->xCaretPos = 0;
-	this->yCaretPos = 0;
+	this->caretPos.x = 0;
+	this->caretPos.y = 0;
 	this->text;
 	hDC = GetDC(hWnd);
 	SelectObject(hDC, GetStockObject(SYSTEM_FIXED_FONT));
@@ -22,15 +22,15 @@ void ContentOfWindow::processorWmChar(WORD wParam)
 	switch (wParam)
 	{
 	case '\b':
-		if (xCaretPos > 0 || yCaretPos != 0)
+		if (caretPos.x > 0 || caretPos.y != 0)
 		{
 			calculateLengthLine();
-			index = xCaretPos + yCaretPos * lengthLine;
+			index = caretPos.x + caretPos.y * lengthLine;
 			text.erase(index-1,1);
 			
-			if (xCaretPos != 0)
+			if (caretPos.x != 0)
 			{
-				xCaretPos--;
+				caretPos.x--;
 			}
 		}
 		break;
@@ -52,8 +52,9 @@ void ContentOfWindow::processorWmChar(WORD wParam)
 
 void ContentOfWindow::setSizeAreaType(LPARAM param)
 {
-	xClient = LOWORD(param);
-	yClient = HIWORD(param);
+	clientSize.x = LOWORD(param);
+	clientSize.y = HIWORD(param);
+	calculateLengthLine();
 }
 
 void ContentOfWindow::workWithCaret(WORD message)
@@ -61,8 +62,8 @@ void ContentOfWindow::workWithCaret(WORD message)
 	calculateCharSize();
 	if (message == WM_SETFOCUS)
 	{
-		CreateCaret(hWnd,NULL, NULL,yCharSize);
-		SetCaretPos(xCaretPos * xCharSize, yCaretPos * yCharSize );
+		CreateCaret(hWnd,NULL, NULL,charSize.y);
+		SetCaretPos(caretPos.x * charSize.x, caretPos.y * charSize.y );
 		ShowCaret(hWnd);
 	}
 	if (message == WM_KILLFOCUS)
@@ -82,7 +83,7 @@ void ContentOfWindow::drawText()
 	{
 		printCharOnDC(i);
 	}
-	SetCaretPos(xCaretPos * xCharSize, yCaretPos * yCharSize );
+	SetCaretPos(caretPos.x * charSize.x, caretPos.y * charSize.y );
 	ShowCaret(hWnd);
 }
 
@@ -90,7 +91,7 @@ void ContentOfWindow::drawText()
 void ContentOfWindow::addCharToText(WORD wParam)
 {
 	wchar_t addedSymbol = wParam;
-	int indexCaret = xCaretPos + yCaretPos * lengthLine;
+	int indexCaret = caretPos.x + caretPos.y * lengthLine;
 	if ( text.size() == indexCaret )
 	{
 		text.append(&addedSymbol,1);
@@ -100,14 +101,14 @@ void ContentOfWindow::addCharToText(WORD wParam)
 		text.insert(indexCaret,&addedSymbol,1);
 	}
 	//maybe indexCaret require do field, because it's often used
-	if (xCaretPos == (lengthLine-1))
+	if (caretPos.x == (lengthLine-1))
 	{
-		xCaretPos = 0;
-		yCaretPos++;
+		caretPos.x = 0;
+		caretPos.y++;
 	}
 	else
 	{
-		xCaretPos++;
+		caretPos.x++;
 	}
 }
 
@@ -121,7 +122,7 @@ void ContentOfWindow::printCharOnDC(int index)
 		int yIndex = index / lengthLine;
 		int xIndex = index % lengthLine;
 		LPCWSTR currentChar = &text.c_str()[index];
-		TextOut(hDC, xIndex * xCharSize, yIndex * yCharSize, currentChar, 1);
+		TextOut(hDC, xIndex * charSize.x, yIndex * charSize.y, currentChar, 1);
 		break;
 	}
 }
@@ -132,15 +133,15 @@ void ContentOfWindow::validateRectsForPaint()
 	RECT rect;
 	rect.left = 0;
 	rect.top = 0;
-	rect.right = xClient;
-	rect.bottom = endTextPos.y * yCharSize;
+	rect.right = clientSize.x;
+	rect.bottom = endTextPos.y * charSize.y;
 	ValidateRect(hWnd, &rect);
 
 	RECT lastLineRect;
 	lastLineRect.left = 0;
-	lastLineRect.top = endTextPos.y * yCharSize;
-	lastLineRect.right = endTextPos.x * xCharSize;
-	lastLineRect.bottom = lastLineRect.top + yCharSize;
+	lastLineRect.top = endTextPos.y * charSize.y;
+	lastLineRect.right = endTextPos.x * charSize.x;
+	lastLineRect.bottom = lastLineRect.top + charSize.y;
 	ValidateRect(hWnd,&lastLineRect);
 }
 
@@ -148,21 +149,21 @@ void ContentOfWindow::calculateCaretPos(LPARAM lParam)
 {
 	int x = LOWORD(lParam);
 	int y = HIWORD(lParam);
-	yCaretPos = y / yCharSize;
-	xCaretPos = x / xCharSize;
+	caretPos.y = y / charSize.y;
+	caretPos.x = x / charSize.x;
 }
 
 void ContentOfWindow::calculateCharSize()
 {
 	TEXTMETRIC tm;
 	GetTextMetrics(hDC, &tm);
-	xCharSize = tm.tmAveCharWidth;
-	yCharSize = tm.tmHeight;
+	charSize.x = tm.tmAveCharWidth;
+	charSize.y = tm.tmHeight;
 }
 
 void ContentOfWindow::calculateLengthLine()
 {
-	lengthLine = xClient / xCharSize;
+	lengthLine = clientSize.x / charSize.x;
 }
 
 void ContentOfWindow::calculateEndTextPos()

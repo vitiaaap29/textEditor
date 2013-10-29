@@ -9,12 +9,9 @@ class ContentOfWindow
 private:
 	HWND hWnd;
 	wstring text;
-	int xCaretPos;
-	int yCaretPos;
-	int xClient;
-	int yClient;
-	int xCharSize;
-	int yCharSize;
+	POINT caretPos;
+	POINT clientSize;
+	POINT charSize;
 	POINT endTextPos;
 	HFONT font;
 	int lengthLine;
