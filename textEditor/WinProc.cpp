@@ -19,7 +19,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         break;
 	case WM_LBUTTONDOWN:
 	case WM_RBUTTONDOWN:
-		content->calculateCaretPos(lParam);
+		content->calulateCaretPosByCoordinates(lParam);
 		InvalidateRect(hWnd,NULL,true);
 		break;
 	case WM_COMMAND:
@@ -42,7 +42,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		content->processorWmChar(wParam);
 		break;
 	case WM_PAINT:
-		content->drawText();
+		if (content->Text().size() != 0)
+		{
+			content->drawText();
+		}
 	default:
 		return DefWindowProc(hWnd, message, wParam, lParam);
 		break;

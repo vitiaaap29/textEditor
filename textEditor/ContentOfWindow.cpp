@@ -5,7 +5,11 @@ ContentOfWindow::ContentOfWindow(HWND hWnd)
 	this->hWnd = hWnd;
 	this->caretPos.x = 0;
 	this->caretPos.y = 0;
+	this->endTextPos.x = 1;
+	this->endTextPos.y = 0;
 	this->text;
+	this->iteratorIndexes = vectorIndexesNewLines.begin();
+	this->autoMoveNextlineFlag = true;
 	hDC = GetDC(hWnd);
 	SelectObject(hDC, GetStockObject(SYSTEM_FIXED_FONT));
 }
@@ -17,15 +21,13 @@ ContentOfWindow::~ContentOfWindow(void)
 
 void ContentOfWindow::processorWmChar(WORD wParam)
 {
-	int index;
-	int lengthText = 0;
+	calculateLengthLine();
 	switch (wParam)
 	{
 	case '\b':
 		if (caretPos.x > 0 || caretPos.y != 0)
 		{
-			calculateLengthLine();
-			index = caretPos.x + caretPos.y * lengthLine;
+			int index = indexCharByLinesLength();
 			text.erase(index-1,1);
 			
 			if (caretPos.x != 0)
@@ -41,9 +43,9 @@ void ContentOfWindow::processorWmChar(WORD wParam)
 		}
 		break;
 	case '\n':
+		addCharToText(wParam);
 		break;
 	default:
-		calculateLengthLine();
 		addCharToText(wParam);
 		break;
 	}
@@ -76,8 +78,9 @@ void ContentOfWindow::workWithCaret(WORD message)
 void ContentOfWindow::drawText()
 {
 	validateRectsForPaint();
-
 	HideCaret(hWnd);
+	currentPos.x = 0;
+	currentPos.y = 0;
 	int textSize = text._Mysize;
 	for (int i = 0; i < textSize; i++)
 	{
@@ -90,23 +93,28 @@ void ContentOfWindow::drawText()
 
 void ContentOfWindow::addCharToText(WORD wParam)
 {
+	autoNewLine();
 	wchar_t addedSymbol = wParam;
-	int indexCaret = caretPos.x + caretPos.y * lengthLine;
-	if ( text.size() == indexCaret )
+	int indexCharInText = indexCharByLinesLength();
+	incrementIndexesNewLines(caretPos.y, vectorIndexesNewLines.size());
+
+	if ( text.size() == indexCharInText)
 	{
 		text.append(&addedSymbol,1);
 	}
 	else
 	{ 
-		text.insert(indexCaret,&addedSymbol,1);
+		text.insert(indexCharInText,&addedSymbol,1);
 	}
-	//maybe indexCaret require do field, because it's often used
-	if (caretPos.x == (lengthLine-1))
+
+	if (addedSymbol == '\n')
 	{
-		caretPos.x = 0;
+		vectorIndexesNewLines.insert(vectorIndexesNewLines.begin() + caretPos.y,indexCharInText);
+		incrementIndexesNewLines(caretPos.y + 1, vectorIndexesNewLines.size());
 		caretPos.y++;
+		caretPos.x = 0;
 	}
-	else
+	else if (caretPos.x < lengthLine)
 	{
 		caretPos.x++;
 	}
@@ -114,15 +122,20 @@ void ContentOfWindow::addCharToText(WORD wParam)
 
 void ContentOfWindow::printCharOnDC(int index)
 {
+	LPCWSTR currentChar;
 	switch (text[index])
 	{
 	case '\n':
+		currentPos.x = 0;
+		currentPos.y++;
 		break;
 	default:
-		int yIndex = index / lengthLine;
-		int xIndex = index % lengthLine;
-		LPCWSTR currentChar = &text.c_str()[index];
-		TextOut(hDC, xIndex * charSize.x, yIndex * charSize.y, currentChar, 1);
+		currentChar = &text.c_str()[index];
+		TextOut(hDC, currentPos.x * charSize.x, currentPos.y * charSize.y, currentChar, 1);
+		if (lengthLine > currentPos.x)
+		{
+			currentPos.x++;
+		}
 		break;
 	}
 }
@@ -145,7 +158,7 @@ void ContentOfWindow::validateRectsForPaint()
 	ValidateRect(hWnd,&lastLineRect);
 }
 
-void ContentOfWindow::calculateCaretPos(LPARAM lParam)
+void ContentOfWindow::calulateCaretPosByCoordinates(LPARAM lParam)
 {
 	int x = LOWORD(lParam);
 	int y = HIWORD(lParam);
@@ -166,8 +179,65 @@ void ContentOfWindow::calculateLengthLine()
 	lengthLine = clientSize.x / charSize.x;
 }
 
+int ContentOfWindow::indexCharByLinesLength()
+{
+	int indexCharInText;
+	if (caretPos.y < (int)vectorIndexesNewLines.size())
+	{
+		indexCharInText = vectorIndexesNewLines[caretPos.y-1] + caretPos.x;
+	}
+	else if (caretPos.y == vectorIndexesNewLines.size())
+	{
+		if (caretPos.y != 0)
+		{
+			indexCharInText = vectorIndexesNewLines[caretPos.y-1] + (text.size() - vectorIndexesNewLines[caretPos.y-1]);
+		}
+		else
+		{
+			indexCharInText = caretPos.x;
+		}
+	}
+	return indexCharInText;
+}
+
+void ContentOfWindow::autoNewLine()
+{
+	static bool flagGo = true;
+	calculateLengthLine();
+	if (autoMoveNextlineFlag && caretPos.x == lengthLine && flagGo)
+	{
+		flagGo = false;
+		addCharToText('\n');
+		flagGo = true;
+	}
+}
+
+void ContentOfWindow::incrementIndexesNewLines(int start, int end)
+{
+	if (end <= (int)vectorIndexesNewLines.size())
+	{
+		for (int i = start; i < end; i++)
+		{
+			vectorIndexesNewLines[i]++;
+		}
+	}
+}
+
 void ContentOfWindow::calculateEndTextPos()
 {
-	endTextPos.x = text.size() % lengthLine;
-	endTextPos.y = text.size() / lengthLine;
+	if (vectorIndexesNewLines.size() == 0)
+	{
+		endTextPos.y = 0;
+		endTextPos.x = text.size();
+	}
+	else if (text.size() == vectorIndexesNewLines.back() + 1)
+	{
+		endTextPos.y = vectorIndexesNewLines.size();
+		endTextPos.x = 0;
+	}
+	else
+	{
+		endTextPos.y = vectorIndexesNewLines.size();
+		endTextPos.x = text.size() - (vectorIndexesNewLines.back() + 1);
+	}
 }
