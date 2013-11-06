@@ -11,7 +11,7 @@ private:
 	HWND hWnd;
 	wstring text;
 	vector<int> vectorIndexesNewLines;
-	vector<int>::iterator iteratorIndexes;
+	//vector<int>::iterator iteratorIndexes;
 	bool autoMoveNextlineFlag;
 	POINT caretPos;
 	POINT clientSize;

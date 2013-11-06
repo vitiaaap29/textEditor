@@ -8,7 +8,7 @@ ContentOfWindow::ContentOfWindow(HWND hWnd)
 	this->endTextPos.x = 1;
 	this->endTextPos.y = 0;
 	this->text;
-	this->iteratorIndexes = vectorIndexesNewLines.begin();
+	//this->iteratorIndexes = vectorIndexesNewLines.begin();
 	this->autoMoveNextlineFlag = true;
 	hDC = GetDC(hWnd);
 	SelectObject(hDC, GetStockObject(SYSTEM_FIXED_FONT));
@@ -28,12 +28,23 @@ void ContentOfWindow::processorWmChar(WORD wParam)
 		if (caretPos.x > 0 || caretPos.y != 0)
 		{
 			int index = indexCharByLinesLength();
-			text.erase(index-1,1);
 			
 			if (caretPos.x != 0)
 			{
 				caretPos.x--;
 			}
+			else
+			{
+				caretPos.y--;
+				caretPos.x = vectorIndexesNewLines.at(caretPos.y);
+			}
+
+			if (text[index-1] == '\n')
+			{
+				vector<int>::iterator it = vectorIndexesNewLines.begin();
+				vectorIndexesNewLines.erase(it + caretPos.y);
+			}
+			text.erase(index-1,1);
 		}
 		break;
 	case '\t':
@@ -184,13 +195,13 @@ int ContentOfWindow::indexCharByLinesLength()
 	int indexCharInText;
 	if (caretPos.y < (int)vectorIndexesNewLines.size())
 	{
-		indexCharInText = vectorIndexesNewLines[caretPos.y-1] + caretPos.x;
+		indexCharInText = vectorIndexesNewLines[caretPos.y-1] + caretPos.x + 1;
 	}
 	else if (caretPos.y == vectorIndexesNewLines.size())
 	{
 		if (caretPos.y != 0)
 		{
-			indexCharInText = vectorIndexesNewLines[caretPos.y-1] + (text.size() - vectorIndexesNewLines[caretPos.y-1]);
+			indexCharInText = vectorIndexesNewLines[caretPos.y-1] + caretPos.x + 1;
 		}
 		else
 		{
