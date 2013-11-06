@@ -36,10 +36,17 @@ void ContentOfWindow::processorWmChar(WORD wParam)
 			else
 			{
 				caretPos.y--;
-				caretPos.x = vectorIndexesNewLines.at(caretPos.y);
+				if (vectorIndexesNewLines.empty()  || caretPos.y == 0)
+				{
+					caretPos.x = vectorIndexesNewLines.at(caretPos.y);
+				}
+				else
+				{
+					caretPos.x = vectorIndexesNewLines[caretPos.y] - vectorIndexesNewLines[caretPos.y -1] - 1;
+				}
 			}
 
-			if (text[index-1] == '\n')
+			if (text[index-1] == '\r')
 			{
 				vector<int>::iterator it = vectorIndexesNewLines.begin();
 				vectorIndexesNewLines.erase(it + caretPos.y);
@@ -53,6 +60,7 @@ void ContentOfWindow::processorWmChar(WORD wParam)
 			addCharToText(wParam);
 		}
 		break;
+	case '\r':
 	case '\n':
 		addCharToText(wParam);
 		break;
@@ -118,7 +126,7 @@ void ContentOfWindow::addCharToText(WORD wParam)
 		text.insert(indexCharInText,&addedSymbol,1);
 	}
 
-	if (addedSymbol == '\n')
+	if (addedSymbol == '\r')
 	{
 		vectorIndexesNewLines.insert(vectorIndexesNewLines.begin() + caretPos.y,indexCharInText);
 		incrementIndexesNewLines(caretPos.y + 1, vectorIndexesNewLines.size());
@@ -137,6 +145,7 @@ void ContentOfWindow::printCharOnDC(int index)
 	switch (text[index])
 	{
 	case '\n':
+	case '\r':
 		currentPos.x = 0;
 		currentPos.y++;
 		break;
@@ -195,7 +204,14 @@ int ContentOfWindow::indexCharByLinesLength()
 	int indexCharInText;
 	if (caretPos.y < (int)vectorIndexesNewLines.size())
 	{
-		indexCharInText = vectorIndexesNewLines[caretPos.y-1] + caretPos.x + 1;
+		if (caretPos.y != 0)
+		{
+			indexCharInText = vectorIndexesNewLines[caretPos.y-1] + caretPos.x + 1;
+		}
+		else
+		{
+			indexCharInText = caretPos.x;
+		}
 	}
 	else if (caretPos.y == vectorIndexesNewLines.size())
 	{
@@ -218,7 +234,7 @@ void ContentOfWindow::autoNewLine()
 	if (autoMoveNextlineFlag && caretPos.x == lengthLine && flagGo)
 	{
 		flagGo = false;
-		addCharToText('\n');
+		addCharToText('\r');
 		flagGo = true;
 	}
 }

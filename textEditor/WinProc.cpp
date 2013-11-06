@@ -42,10 +42,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		content->processorWmChar(wParam);
 		break;
 	case WM_PAINT:
-		if (content->Text().size() != 0)
-		{
-			content->drawText();
-		}
+		content->drawText();
 	default:
 		return DefWindowProc(hWnd, message, wParam, lParam);
 		break;
