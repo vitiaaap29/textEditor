@@ -8,7 +8,6 @@ ContentOfWindow::ContentOfWindow(HWND hWnd)
 	this->endTextPos.x = 1;
 	this->endTextPos.y = 0;
 	this->text;
-	//this->iteratorIndexes = vectorIndexesNewLines.begin();
 	this->autoMoveNextlineFlag = true;
 	hDC = GetDC(hWnd);
 	SelectObject(hDC, GetStockObject(SYSTEM_FIXED_FONT));
@@ -52,6 +51,7 @@ void ContentOfWindow::processorWmChar(WORD wParam)
 				vectorIndexesNewLines.erase(it + caretPos.y);
 			}
 			text.erase(index-1,1);
+			changeIndexesNewLines(caretPos.y,-1);
 		}
 		break;
 	case '\t':
@@ -115,7 +115,7 @@ void ContentOfWindow::addCharToText(WORD wParam)
 	autoNewLine();
 	wchar_t addedSymbol = wParam;
 	int indexCharInText = indexCharByLinesLength();
-	incrementIndexesNewLines(caretPos.y, vectorIndexesNewLines.size());
+	changeIndexesNewLines(caretPos.y,1);
 
 	if ( text.size() == indexCharInText)
 	{
@@ -128,8 +128,8 @@ void ContentOfWindow::addCharToText(WORD wParam)
 
 	if (addedSymbol == '\r')
 	{
-		vectorIndexesNewLines.insert(vectorIndexesNewLines.begin() + caretPos.y,indexCharInText);
-		incrementIndexesNewLines(caretPos.y + 1, vectorIndexesNewLines.size());
+		vectorIndexesNewLines.insert(vectorIndexesNewLines.begin() + caretPos.y, indexCharInText);
+		changeIndexesNewLines(caretPos.y + 1, 1);
 		caretPos.y++;
 		caretPos.x = 0;
 	}
@@ -239,20 +239,16 @@ void ContentOfWindow::autoNewLine()
 	}
 }
 
-void ContentOfWindow::incrementIndexesNewLines(int start, int end)
+void ContentOfWindow::changeIndexesNewLines(int start, int additional)
 {
-	if (end <= (int)vectorIndexesNewLines.size())
+	for (int i = start; i < (int)vectorIndexesNewLines.size(); i++)
 	{
-		for (int i = start; i < end; i++)
-		{
-			vectorIndexesNewLines[i]++;
-		}
+		vectorIndexesNewLines[i] += additional;
 	}
 }
 
 void ContentOfWindow::calculateEndTextPos()
-{
-	if (vectorIndexesNewLines.size() == 0)
+{	if (vectorIndexesNewLines.size() == 0)
 	{
 		endTextPos.y = 0;
 		endTextPos.x = text.size();

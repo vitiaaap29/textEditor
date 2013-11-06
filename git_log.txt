@@ -1,0 +1,35 @@
+commit 3397f6b4c6872a70f3866c0cf2bfe557b3a15ac9
+Author: vitiaaap29 <viktor.kyrilovich@gmail.com>
+Date:   Wed Nov 6 05:00:13 2013 +0400
+
+    fix bug: \n for multiline text; replace \n on \r, because press Enter call \r
+
+commit bc4a3b4c1af29978e88bbde0750c5570af76ad8e
+Author: vitiaaap29 <viktor.kyrilovich@gmail.com>
+Date:   Wed Nov 6 04:06:40 2013 +0400
+
+    \b delete  \n, bug for multiline text, maybe wrong efine index in text
+
+commit 00ce96c1d901d9b4230e46c1ef9b1bc16d94668f
+Author: vitiaaap29 <viktor.kyrilovich@gmail.com>
+Date:   Thu Oct 31 03:18:06 2013 +0400
+
+    unwork; try do \n, try defenition index by caret without lengthLine, because count chars in lines maybe be different
+
+commit cc8c7d4374fb0a35ef2966c137d6a023d57f78c1
+Author: vitiaaap29 <viktor.kyrilovich@gmail.com>
+Date:   Tue Oct 29 18:27:35 2013 +0400
+
+    use POINT instead of xCharSize, y...; fix bug, when not repaint string on message WM_SIZE
+
+commit c218901bdd03bd7fc94477d1e721a22b830603ef
+Author: vitiaaap29 <viktor.kyrilovich@gmail.com>
+Date:   Sun Oct 27 23:30:40 2013 +0400
+
+    fix bug: when after delete text[0] caret wasn't moved
+
+commit 824bd0c3d205b124c08c59da4c224b7f9da495ec
+Author: vitiaaap29 <viktor.kyrilovich@gmail.com>
+Date:   Sun Oct 27 22:25:35 2013 +0400
+
+    first commit in new repository; now work type text from keyboard, caret navigate from mouse, edit to backspace

@@ -28,7 +28,6 @@ private:
 	void calculateLengthLine();
 	void calculateEndTextPos();
 	int indexCharByLinesLength();
-	void incrementIndexesNewLines(int start, int end);
 	void autoNewLine();
 public:
 	ContentOfWindow(HWND hWnd);
@@ -36,6 +35,7 @@ public:
 	void drawText();
 	void processorWmChar(WORD wParam);
 	void calulateCaretPosByCoordinates(LPARAM lParam);
+	void changeIndexesNewLines(int start, int additional);
 	wstring Text(){return text;}
 	void workWithCaret(WORD message);
 
