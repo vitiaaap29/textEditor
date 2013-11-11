@@ -10,7 +10,9 @@ bool ProcessingMenuMessages(WORD id)
 		PostQuitMessage(0);
 		MessageBeep(MB_OK);  
 		break;
+	case ID_CTRL_V:
 
+		break;
 	default:
 		return false;
 	}

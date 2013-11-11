@@ -23,7 +23,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		InvalidateRect(hWnd,NULL,true);
 		break;
 	case WM_COMMAND:
-		if ( ProcessingMenuMessages(LOWORD(wParam)) )
+		if ( content->processorMenuMessages(LOWORD(wParam)) )
 		{
 			break;
 		}

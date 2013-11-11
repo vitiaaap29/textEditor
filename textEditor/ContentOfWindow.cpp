@@ -24,6 +24,56 @@ ContentOfWindow::~ContentOfWindow(void)
 	ReleaseDC(hWnd,hDC);
 }
 
+void ContentOfWindow::calulateCaretPosByCoordinates(LPARAM lParam)
+{
+	int x = LOWORD(lParam);
+	int y = HIWORD(lParam);
+	caretPos.y = y / charSize.y;
+	caretPos.x = x / charSize.x;
+}
+
+void ContentOfWindow::drawText()
+{
+	HideCaret(hWnd);
+	FillRect(hDC, &clientRect, (HBRUSH) (COLOR_WINDOW+1));
+	validateRectsForPaint();
+	POINT currentPos;
+	currentPos.x = 0;
+	currentPos.y = 0;
+	int textSize = text._Mysize;
+	for (int i = 0; i < textSize; i++)
+	{
+		currentPos =  printCharOnDC(i,currentPos);
+	}
+	SetCaretPos(caretPos.x * charSize.x, caretPos.y * charSize.y );
+	ShowCaret(hWnd);
+}
+
+bool ContentOfWindow::processorMenuMessages(WORD id)
+{
+	switch (id)
+	{
+	case ID_FILE_EXIT:
+		PostQuitMessage(0);
+		MessageBeep(MB_OK);  
+		break;
+	case ID_CTRL_V:
+		if (OpenClipboard(hWnd))
+		{
+			HANDLE hData = GetClipboardData(CF_UNICODETEXT);
+			wstring fromClipboard = (wchar_t*)GlobalLock(hData);
+			GlobalUnlock(hData);
+			CloseClipboard();
+			text.insert(indexInTextByCaret(), &fromClipboard.at(0), fromClipboard.size());
+			InvalidateRect(hWnd, NULL, false);
+		}
+		break;
+	default:
+		return false;
+	}
+	return true;
+}
+
 void ContentOfWindow::processorWmChar(WORD wParam)
 {
 	calculateLengthLine();
@@ -100,23 +150,6 @@ void ContentOfWindow::workWithCaret(WORD message)
 	}
 }
 
-void ContentOfWindow::drawText()
-{
-	HideCaret(hWnd);
-	FillRect(hDC, &clientRect, (HBRUSH) (COLOR_WINDOW+1));
-	validateRectsForPaint();
-	POINT currentPos;
-	currentPos.x = 0;
-	currentPos.y = 0;
-	int textSize = text._Mysize;
-	for (int i = 0; i < textSize; i++)
-	{
-		currentPos =  printCharOnDC(i,currentPos);
-	}
-	SetCaretPos(caretPos.x * charSize.x, caretPos.y * charSize.y );
-	ShowCaret(hWnd);
-}
-
 
 void ContentOfWindow::addCharToText(WORD wParam)
 {
@@ -144,6 +177,69 @@ void ContentOfWindow::addCharToText(WORD wParam)
 	{
 		caretPos.x++;
 	}
+}
+
+void ContentOfWindow::autoNewLine()
+{
+	static bool flagGo = true;
+	calculateLengthLine();
+	if (autoMoveNextlineFlag && caretPos.x == lengthLine && flagGo)
+	{
+		flagGo = false;
+		addCharToText('\r');
+		flagGo = true;
+	}
+}
+
+void ContentOfWindow::calculateCharSize()
+{
+	TEXTMETRIC tm;
+	GetTextMetrics(hDC, &tm);
+	charSize.x = tm.tmAveCharWidth;
+	charSize.y = tm.tmHeight;
+}
+
+void ContentOfWindow::calculateLengthLine()
+{
+	lengthLine = clientSize.x / charSize.x;
+}
+
+void ContentOfWindow::calculateEndTextPos()
+{	
+	if (!vectorIndexesNewLines.empty())
+	{
+		endTextPos.y = vectorIndexesNewLines.size();
+		endTextPos.x = text.size() - (vectorIndexesNewLines.back() + 1);
+	}
+	else
+	{
+		endTextPos.y = 0;
+		endTextPos.x = text.size();
+	}
+}
+
+void ContentOfWindow::changeIndexesNewLines(int start, int additional)
+{
+	for (int i = start; i < (int)vectorIndexesNewLines.size(); i++)
+	{
+		vectorIndexesNewLines[i] += additional;
+	}
+}
+
+int ContentOfWindow::indexInTextByCaret()
+{
+	//если мы не попадаем  область текста, то автоматом будет добовляться в конец
+	//это временное решение
+	int indexCharInText = text.size();
+	if ( (caretPos.y < endTextPos.y) || (caretPos.y == endTextPos.y && caretPos.x <= endTextPos.x) )
+	{
+		indexCharInText = caretPos.x;
+		if (!vectorIndexesNewLines.empty())
+		{
+			indexCharInText += vectorIndexesNewLines[caretPos.y-1] + 1;
+		}
+	}
+	return indexCharInText;
 }
 
 POINT ContentOfWindow::printCharOnDC(int indexCharInText, POINT currentPos)
@@ -178,75 +274,4 @@ void ContentOfWindow::validateRectsForPaint()
 	lastLineRect.right = endTextPos.x * charSize.x;
 	lastLineRect.bottom = lastLineRect.top + charSize.y;
 	ValidateRect(hWnd,&lastLineRect);
-}
-
-void ContentOfWindow::calulateCaretPosByCoordinates(LPARAM lParam)
-{
-	int x = LOWORD(lParam);
-	int y = HIWORD(lParam);
-	caretPos.y = y / charSize.y;
-	caretPos.x = x / charSize.x;
-}
-
-void ContentOfWindow::calculateCharSize()
-{
-	TEXTMETRIC tm;
-	GetTextMetrics(hDC, &tm);
-	charSize.x = tm.tmAveCharWidth;
-	charSize.y = tm.tmHeight;
-}
-
-void ContentOfWindow::calculateLengthLine()
-{
-	lengthLine = clientSize.x / charSize.x;
-}
-
-int ContentOfWindow::indexInTextByCaret()
-{
-	//если мы не попадаем  область текста, то автоматом будет добовляться в конец
-	//это временное решение
-	int indexCharInText = text.size();
-	if ( (caretPos.y < endTextPos.y) || (caretPos.y == endTextPos.y && caretPos.x <= endTextPos.x) )
-	{
-		indexCharInText = caretPos.x;
-		if (!vectorIndexesNewLines.empty())
-		{
-			indexCharInText += vectorIndexesNewLines[caretPos.y-1] + 1;
-		}
-	}
-	return indexCharInText;
-}
-
-void ContentOfWindow::autoNewLine()
-{
-	static bool flagGo = true;
-	calculateLengthLine();
-	if (autoMoveNextlineFlag && caretPos.x == lengthLine && flagGo)
-	{
-		flagGo = false;
-		addCharToText('\r');
-		flagGo = true;
-	}
-}
-
-void ContentOfWindow::changeIndexesNewLines(int start, int additional)
-{
-	for (int i = start; i < (int)vectorIndexesNewLines.size(); i++)
-	{
-		vectorIndexesNewLines[i] += additional;
-	}
-}
-
-void ContentOfWindow::calculateEndTextPos()
-{	
-	if (!vectorIndexesNewLines.empty())
-	{
-		endTextPos.y = vectorIndexesNewLines.size();
-		endTextPos.x = text.size() - (vectorIndexesNewLines.back() + 1);
-	}
-	else
-	{
-		endTextPos.y = 0;
-		endTextPos.x = text.size();
-	}
 }

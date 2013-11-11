@@ -1,6 +1,8 @@
 #include "StdAfx.h"
+#include "resource.h"
 #include <string>
 #include <math.h>
+#include <stdlib.h>
 #include <vector>
 
 using namespace std;
@@ -9,9 +11,9 @@ class ContentOfWindow
 {
 private:
 	HWND hWnd;
+	HDC hDC;
 	wstring text;
 	vector<int> vectorIndexesNewLines;
-	//vector<int>::iterator iteratorIndexes;
 	bool autoMoveNextlineFlag;
 	POINT caretPos;
 	POINT clientSize;
@@ -20,27 +22,26 @@ private:
 	RECT clientRect;
 	HFONT font;
 	int lengthLine;
-	HDC hDC;
+
 	void addCharToText(WORD wParam);
-	POINT printCharOnDC(int indexCharInText, POINT currentPos);
-	void validateRectsForPaint();
+	void autoNewLine();
 	void calculateCharSize();
 	void calculateLengthLine();
 	void calculateEndTextPos();
+	void changeIndexesNewLines(int start, int additional);
 	int indexInTextByCaret();
-	void autoNewLine();
+	POINT printCharOnDC(int indexCharInText, POINT currentPos);
+	void validateRectsForPaint();
 public:
 	ContentOfWindow(HWND hWnd);
 	~ContentOfWindow(void);
-	void drawText();
-	void processorWmChar(WORD wParam);
 	void calulateCaretPosByCoordinates(LPARAM lParam);
-	void changeIndexesNewLines(int start, int additional);
-	wstring Text(){return text;}
-	void workWithCaret(WORD message);
-
+	void drawText();
+	bool processorMenuMessages(WORD id);
+	void processorWmChar(WORD wParam);
 	void setSizeAreaType(LPARAM param);
 	void setFont(HFONT font){this->font = font;}
+	void workWithCaret(WORD message);
 };
 
 
