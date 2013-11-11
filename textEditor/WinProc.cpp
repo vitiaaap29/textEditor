@@ -4,8 +4,6 @@
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
 	static ContentOfWindow *content;
-	static int xClient;
-	static int yClient;
 
 	switch (message)
 	{
@@ -23,12 +21,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		InvalidateRect(hWnd,NULL,true);
 		break;
 	case WM_COMMAND:
-		if ( content->processorMenuMessages(LOWORD(wParam)) )
-		{
-			break;
-		}
+		content->processorMenuMessages(LOWORD(wParam));
 		break;
-
 	case WM_SIZE:
 		content->setSizeAreaType(lParam);
 		break;

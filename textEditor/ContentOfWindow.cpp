@@ -113,7 +113,7 @@ void ContentOfWindow::processorWmChar(WORD wParam)
 	case '\t':
 		for (int i = 0; i < 4; i++)
 		{
-			addCharToText(wParam);///error надо пробелы
+			addCharToText(L' ');///error надо пробелы
 		}
 		break;
 	case '\r':
@@ -234,7 +234,7 @@ int ContentOfWindow::indexInTextByCaret()
 	if ( (caretPos.y < endTextPos.y) || (caretPos.y == endTextPos.y && caretPos.x <= endTextPos.x) )
 	{
 		indexCharInText = caretPos.x;
-		if (!vectorIndexesNewLines.empty())
+		if (!vectorIndexesNewLines.empty() && caretPos.y > 0)
 		{
 			indexCharInText += vectorIndexesNewLines[caretPos.y-1] + 1;
 		}

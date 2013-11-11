@@ -105,7 +105,6 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="ProcessingMenuMessages.cpp" />
     <ClCompile Include="StdAfx.cpp" />
     <ClCompile Include="ContentOfWindow.cpp" />
     <ClCompile Include="winMain.cpp" />

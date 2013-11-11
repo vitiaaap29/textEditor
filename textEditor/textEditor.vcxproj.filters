@@ -24,9 +24,6 @@
     <ClCompile Include="StdAfx.cpp">
       <Filter>Header Files</Filter>
     </ClCompile>
-    <ClCompile Include="ProcessingMenuMessages.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="ContentOfWindow.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
