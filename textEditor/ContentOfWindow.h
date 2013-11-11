@@ -17,17 +17,17 @@ private:
 	POINT clientSize;
 	POINT charSize;
 	POINT endTextPos;
-	POINT currentPos;
+	RECT clientRect;
 	HFONT font;
 	int lengthLine;
 	HDC hDC;
 	void addCharToText(WORD wParam);
-	void printCharOnDC(int index);
+	POINT printCharOnDC(int indexCharInText, POINT currentPos);
 	void validateRectsForPaint();
 	void calculateCharSize();
 	void calculateLengthLine();
 	void calculateEndTextPos();
-	int indexCharByLinesLength();
+	int indexInTextByCaret();
 	void autoNewLine();
 public:
 	ContentOfWindow(HWND hWnd);

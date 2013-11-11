@@ -7,10 +7,16 @@ ContentOfWindow::ContentOfWindow(HWND hWnd)
 	this->caretPos.y = 0;
 	this->endTextPos.x = 1;
 	this->endTextPos.y = 0;
-	this->text;
 	this->autoMoveNextlineFlag = true;
 	hDC = GetDC(hWnd);
 	SelectObject(hDC, GetStockObject(SYSTEM_FIXED_FONT));
+	if (!GetClientRect(hWnd, &clientRect))
+	{
+		//тут надо генерировать исключение, что у нас трындец
+		// отлавливать исключение и выводить по нему MessageBox в WinProс
+		//это оставлю для Максима или Макрычева
+		//http://msdn.microsoft.com/en-us/library/windows/desktop/ms633503(v=vs.85).aspx
+	}
 }
 
 ContentOfWindow::~ContentOfWindow(void)
@@ -26,7 +32,7 @@ void ContentOfWindow::processorWmChar(WORD wParam)
 	case '\b':
 		if (caretPos.x > 0 || caretPos.y != 0)
 		{
-			int index = indexCharByLinesLength();
+			int index = indexInTextByCaret();
 			
 			if (caretPos.x != 0)
 			{
@@ -57,7 +63,7 @@ void ContentOfWindow::processorWmChar(WORD wParam)
 	case '\t':
 		for (int i = 0; i < 4; i++)
 		{
-			addCharToText(wParam);
+			addCharToText(wParam);///error надо пробелы
 		}
 		break;
 	case '\r':
@@ -68,7 +74,7 @@ void ContentOfWindow::processorWmChar(WORD wParam)
 		addCharToText(wParam);
 		break;
 	}
-	InvalidateRect(hWnd,NULL,true);
+	InvalidateRect(hWnd,NULL, false);
 }
 
 void ContentOfWindow::setSizeAreaType(LPARAM param)
@@ -96,14 +102,16 @@ void ContentOfWindow::workWithCaret(WORD message)
 
 void ContentOfWindow::drawText()
 {
-	validateRectsForPaint();
 	HideCaret(hWnd);
+	FillRect(hDC, &clientRect, (HBRUSH) (COLOR_WINDOW+1));
+	validateRectsForPaint();
+	POINT currentPos;
 	currentPos.x = 0;
 	currentPos.y = 0;
 	int textSize = text._Mysize;
 	for (int i = 0; i < textSize; i++)
 	{
-		printCharOnDC(i);
+		currentPos =  printCharOnDC(i,currentPos);
 	}
 	SetCaretPos(caretPos.x * charSize.x, caretPos.y * charSize.y );
 	ShowCaret(hWnd);
@@ -114,7 +122,7 @@ void ContentOfWindow::addCharToText(WORD wParam)
 {
 	autoNewLine();
 	wchar_t addedSymbol = wParam;
-	int indexCharInText = indexCharByLinesLength();
+	int indexCharInText = indexInTextByCaret();
 	changeIndexesNewLines(caretPos.y,1);
 
 	if ( text.size() == indexCharInText)
@@ -129,7 +137,6 @@ void ContentOfWindow::addCharToText(WORD wParam)
 	if (addedSymbol == '\r')
 	{
 		vectorIndexesNewLines.insert(vectorIndexesNewLines.begin() + caretPos.y, indexCharInText);
-		changeIndexesNewLines(caretPos.y + 1, 1);
 		caretPos.y++;
 		caretPos.x = 0;
 	}
@@ -139,25 +146,20 @@ void ContentOfWindow::addCharToText(WORD wParam)
 	}
 }
 
-void ContentOfWindow::printCharOnDC(int index)
+POINT ContentOfWindow::printCharOnDC(int indexCharInText, POINT currentPos)
 {
-	LPCWSTR currentChar;
-	switch (text[index])
+	LPCWSTR printedChar = &text.c_str()[indexCharInText];
+	if (text[indexCharInText] != '\r')
 	{
-	case '\n':
-	case '\r':
+		TextOut(hDC, currentPos.x * charSize.x, currentPos.y * charSize.y, printedChar, 1);
+		currentPos.x++;
+	}
+	else
+	{
 		currentPos.x = 0;
 		currentPos.y++;
-		break;
-	default:
-		currentChar = &text.c_str()[index];
-		TextOut(hDC, currentPos.x * charSize.x, currentPos.y * charSize.y, currentChar, 1);
-		if (lengthLine > currentPos.x)
-		{
-			currentPos.x++;
-		}
-		break;
 	}
+	return currentPos;
 }
 
 void ContentOfWindow::validateRectsForPaint()
@@ -199,29 +201,17 @@ void ContentOfWindow::calculateLengthLine()
 	lengthLine = clientSize.x / charSize.x;
 }
 
-int ContentOfWindow::indexCharByLinesLength()
+int ContentOfWindow::indexInTextByCaret()
 {
-	int indexCharInText;
-	if (caretPos.y < (int)vectorIndexesNewLines.size())
+	//если мы не попадаем  область текста, то автоматом будет добовляться в конец
+	//это временное решение
+	int indexCharInText = text.size();
+	if ( (caretPos.y < endTextPos.y) || (caretPos.y == endTextPos.y && caretPos.x <= endTextPos.x) )
 	{
-		if (caretPos.y != 0)
+		indexCharInText = caretPos.x;
+		if (!vectorIndexesNewLines.empty())
 		{
-			indexCharInText = vectorIndexesNewLines[caretPos.y-1] + caretPos.x + 1;
-		}
-		else
-		{
-			indexCharInText = caretPos.x;
-		}
-	}
-	else if (caretPos.y == vectorIndexesNewLines.size())
-	{
-		if (caretPos.y != 0)
-		{
-			indexCharInText = vectorIndexesNewLines[caretPos.y-1] + caretPos.x + 1;
-		}
-		else
-		{
-			indexCharInText = caretPos.x;
+			indexCharInText += vectorIndexesNewLines[caretPos.y-1] + 1;
 		}
 	}
 	return indexCharInText;
@@ -248,19 +238,15 @@ void ContentOfWindow::changeIndexesNewLines(int start, int additional)
 }
 
 void ContentOfWindow::calculateEndTextPos()
-{	if (vectorIndexesNewLines.size() == 0)
-	{
-		endTextPos.y = 0;
-		endTextPos.x = text.size();
-	}
-	else if (text.size() == vectorIndexesNewLines.back() + 1)
-	{
-		endTextPos.y = vectorIndexesNewLines.size();
-		endTextPos.x = 0;
-	}
-	else
+{	
+	if (!vectorIndexesNewLines.empty())
 	{
 		endTextPos.y = vectorIndexesNewLines.size();
 		endTextPos.x = text.size() - (vectorIndexesNewLines.back() + 1);
+	}
+	else
+	{
+		endTextPos.y = 0;
+		endTextPos.x = text.size();
 	}
 }
