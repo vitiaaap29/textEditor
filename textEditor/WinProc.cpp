@@ -20,6 +20,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		content->calulateCaretPosByCoordinates(lParam);
 		InvalidateRect(hWnd,NULL,true);
 		break;
+	case WM_KEYDOWN:
+		content->processorArrows(wParam);
+		break;
 	case WM_COMMAND:
 		content->processorMenuMessages(LOWORD(wParam));
 		break;
@@ -37,6 +40,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		break;
 	case WM_PAINT:
 		content->drawText();
+
 	default:
 		return DefWindowProc(hWnd, message, wParam, lParam);
 		break;

@@ -37,11 +37,13 @@ public:
 	~ContentOfWindow(void);
 	void calulateCaretPosByCoordinates(LPARAM lParam);
 	void drawText();
+	void processorArrows(WORD wParam);
 	bool processorMenuMessages(WORD id);
 	void processorWmChar(WORD wParam);
 	void setSizeAreaType(LPARAM param);
 	void setFont(HFONT font){this->font = font;}
 	void workWithCaret(WORD message);
+	void leftline(WORD lParam);
 };
 
 

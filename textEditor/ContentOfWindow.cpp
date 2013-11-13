@@ -49,6 +49,36 @@ void ContentOfWindow::drawText()
 	ShowCaret(hWnd);
 }
 
+void ContentOfWindow::processorArrows(WORD wParam) 
+{
+	HideCaret(hWnd);
+	switch (wParam)
+	{
+		case VK_LEFT:
+			if (caretPos.x == 0)
+				break;
+			else
+			{
+				caretPos.x--;
+				break;
+			}
+
+
+		case VK_RIGHT:
+			caretPos.x++;
+			break;
+
+		case VK_UP:
+			caretPos.y--;
+			break;
+
+		case VK_DOWN:
+			caretPos.y++;
+			break;
+	}
+		SetCaretPos(caretPos.x * charSize.x, caretPos.y * charSize.y );
+		ShowCaret(hWnd);
+}
 bool ContentOfWindow::processorMenuMessages(WORD id)
 {
 	switch (id)
