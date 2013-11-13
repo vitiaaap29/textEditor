@@ -13,8 +13,6 @@ private:
 	HWND hWnd;
 	HDC hDC;
 	wstring text;
-	vector<int> vectorIndexesNewLines;
-	bool autoMoveNextlineFlag;
 	POINT caretPos;
 	POINT clientSize;
 	POINT charSize;
@@ -24,11 +22,9 @@ private:
 	int lengthLine;
 
 	void addCharToText(WORD wParam);
-	void autoNewLine();
 	void calculateCharSize();
 	void calculateLengthLine();
 	void calculateEndTextPos();
-	void changeIndexesNewLines(int start, int additional);
 	int indexInTextByCaret();
 	POINT printCharOnDC(int indexCharInText, POINT currentPos);
 	void validateRectsForPaint();
