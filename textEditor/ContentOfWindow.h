@@ -10,6 +10,7 @@ using namespace std;
 class ContentOfWindow
 {
 private:
+	vector<int> indexesNewLines;
 	HWND hWnd;
 	HDC hDC;
 	wstring text;
@@ -26,6 +27,7 @@ private:
 	void calculateLengthLine();
 	void calculateEndTextPos();
 	int indexInTextByCaret();
+	int posXInline(int posY);
 	POINT printCharOnDC(int indexCharInText, POINT currentPos);
 	void validateRectsForPaint();
 public:

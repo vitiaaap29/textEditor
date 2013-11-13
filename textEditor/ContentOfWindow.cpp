@@ -40,6 +40,7 @@ void ContentOfWindow::drawText()
 	currentPos.x = 0;
 	currentPos.y = 0;
 	int textSize = text._Mysize;
+	indexesNewLines.clear();
 	for (int i = 0; i < textSize; i++)
 	{
 		currentPos =  printCharOnDC(i,currentPos);
@@ -55,20 +56,26 @@ void ContentOfWindow::processorArrows(WORD wParam)
 	{
 		case VK_LEFT:
 			if (caretPos.x == 0)
-				break;
+			{
+				caretPos.y--;
+				caretPos.x = indexesNewLines[caretPos.y];
+			}
 			else
 			{
 				caretPos.x--;
-				break;
 			}
+			break;
 		case VK_RIGHT:
+			if (caretPos.x == indexesNewLines[caretPos.y])
+			{
+				caretPos.x = 0;
+				caretPos.y++;
+			}
 			caretPos.x++;
 			break;
-
 		case VK_UP:
 			caretPos.y--;
 			break;
-
 		case VK_DOWN:
 			caretPos.y++;
 			break;
@@ -76,6 +83,7 @@ void ContentOfWindow::processorArrows(WORD wParam)
 	SetCaretPos(caretPos.x * charSize.x, caretPos.y * charSize.y );
 	ShowCaret(hWnd);
 }
+
 bool ContentOfWindow::processorMenuMessages(WORD id)
 {
 	switch (id)
@@ -94,6 +102,9 @@ bool ContentOfWindow::processorMenuMessages(WORD id)
 			text.insert(indexInTextByCaret(), &fromClipboard.at(0), fromClipboard.size());
 			InvalidateRect(hWnd, NULL, false);
 		}
+		break;
+	case ID_SAVE_FILE:
+		//тут Лёшина функция будет вызываться
 		break;
 	default:
 		return false;
@@ -118,9 +129,7 @@ void ContentOfWindow::processorWmChar(WORD wParam)
 			else
 			{
 				caretPos.y--;
-				//проблема аналогичная проблеме Макса
-				//пока глушим так
-				caretPos.x = lengthLine;
+				caretPos.x = indexesNewLines[caretPos.y - 1];
 			}
 
 			text.erase(index-1,1);
@@ -239,7 +248,6 @@ int ContentOfWindow::indexInTextByCaret()
 		{
 			currentCaretPos.x = 0;
 			currentCaretPos.y++;
-			//index++;
 		}
 		else
 		{
@@ -247,6 +255,18 @@ int ContentOfWindow::indexInTextByCaret()
 		}
 	}
 	return index;
+}
+
+int ContentOfWindow::posXInline(int posY)
+{
+	POINT currentPos;
+	currentPos.x = 0;
+	currentPos.y = 0;
+	for (int i = 0; i < (int)text.size() && posY != currentPos.y; i++)
+	{
+
+	}
+	return 0;
 }
 
 POINT ContentOfWindow::printCharOnDC(int indexCharInText, POINT currentPos)
@@ -261,11 +281,13 @@ POINT ContentOfWindow::printCharOnDC(int indexCharInText, POINT currentPos)
 	else if (currentPos.x == lengthLine)
 	{
 		TextOut(hDC, currentPos.x * charSize.x, currentPos.y * charSize.y, printedChar, 1);
+		indexesNewLines.push_back(currentPos.x);
 		currentPos.x = 0;
 		currentPos.y++;
 	}
 	else
 	{
+		indexesNewLines.push_back(currentPos.x);
 		currentPos.x = 0;
 		currentPos.y++;
 	}
