@@ -21,6 +21,7 @@ private:
 	POINT charSize;
 	POINT endTextPos;
 	POINT startForSelection;
+	int shiftCaretAfterDrawing;
 	RECT clientRect;
 	HFONT font;
 	int lengthLine;
@@ -33,6 +34,7 @@ private:
 	bool caretIncludeSelectArea(POINT caretPos);
 	int indexInTextByCaret();
 	POINT printCharOnDC(int indexCharInText, POINT currentPos);
+	void processorWkRight();
 	void validateRectsForPaint();
 public:
 	ContentOfWindow(HWND hWnd);
@@ -41,7 +43,7 @@ public:
 	void drawText();
 	bool leftMouseIsPress(){return leftMouseButtonPressed;};
 	void mouseSelection(WPARAM wParam, LPARAM lParam);
-	void processorArrows(WORD wParam);
+	void processorArrows(WPARAM wParam);
 	bool processorMenuMessages(WORD id);
 	void processorWmChar(WORD wParam);
 	void setSizeAreaType(LPARAM param);

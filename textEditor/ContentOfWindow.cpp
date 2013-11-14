@@ -9,6 +9,7 @@ ContentOfWindow::ContentOfWindow(HWND hWnd)
 	this->endTextPos.y = 0;
 	this->leftMouseButtonPressed = false;
 	this->selectionFlag = false;
+	this->shiftCaretAfterDrawing = 0;
 	hDC = GetDC(hWnd);
 	SelectObject(hDC, GetStockObject(SYSTEM_FIXED_FONT));
 	if (!GetClientRect(hWnd, &clientRect))
@@ -51,6 +52,12 @@ void ContentOfWindow::drawText()
 		currentPos =  printCharOnDC(i,currentPos);
 		SetBkColor(hDC,color);
 	}
+
+	for (int i = 0; i < shiftCaretAfterDrawing; i++)
+	{
+		processorWkRight();
+	}
+	shiftCaretAfterDrawing = 0;
 	SetCaretPos(caretPos.x * charSize.x, caretPos.y * charSize.y );
 	ShowCaret(hWnd);
 }
@@ -76,7 +83,7 @@ void ContentOfWindow::mouseSelection(WPARAM wParam, LPARAM lParam)
 	}
 }
 
-void ContentOfWindow::processorArrows(WORD wParam) 
+void ContentOfWindow::processorArrows(WPARAM wParam) 
 {
 	HideCaret(hWnd);
 	switch (wParam)
@@ -97,25 +104,7 @@ void ContentOfWindow::processorArrows(WORD wParam)
 			break;
 
 		case VK_RIGHT:
-			if (endTextPos.x != caretPos.x  || endTextPos.y !=caretPos.y)
-			{
-				if (caretPos.y < indexesNewLines.size())
-				{
-					if (caretPos.x == indexesNewLines[caretPos.y])
-					{
-						caretPos.x = 0;
-						caretPos.y++;
-					}
-					else
-					{
-						caretPos.x++;
-					}
-				}
-				else
-				{
-					caretPos.x++;
-				}
-			}
+			processorWkRight();
 			break;
 
 		case VK_UP:
@@ -151,6 +140,7 @@ bool ContentOfWindow::processorMenuMessages(WORD id)
 			GlobalUnlock(hData);
 			CloseClipboard();
 			text.insert(indexInTextByCaret(), &fromClipboard.at(0), fromClipboard.size());
+			shiftCaretAfterDrawing = fromClipboard.size();
 			InvalidateRect(hWnd, NULL, false);
 		}
 		break;
@@ -390,6 +380,29 @@ POINT ContentOfWindow::printCharOnDC(int indexCharInText, POINT currentPos)
 		currentPos.y++;
 	}
 	return currentPos;
+}
+
+void ContentOfWindow::processorWkRight()
+{
+	if (endTextPos.x != caretPos.x  || endTextPos.y !=caretPos.y)
+	{
+		if (caretPos.y < (int)indexesNewLines.size())
+		{
+			if (caretPos.x == indexesNewLines[caretPos.y])
+			{
+				caretPos.x = 0;
+				caretPos.y++;
+			}
+			else
+			{
+				caretPos.x++;
+			}
+		}
+		else
+		{
+			caretPos.x++;
+		}
+	}
 }
 
 void ContentOfWindow::validateRectsForPaint()
