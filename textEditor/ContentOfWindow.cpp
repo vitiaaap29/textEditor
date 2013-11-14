@@ -82,28 +82,52 @@ void ContentOfWindow::processorArrows(WORD wParam)
 	switch (wParam)
 	{
 		case VK_LEFT:
-			if (caretPos.x == 0)
+			if (caretPos.x != 0 || caretPos.y !=0)
+			{
+				if (caretPos.x == 0)
+				{
+					caretPos.y--;
+					caretPos.x = indexesNewLines[caretPos.y];
+				}
+				else
+				{
+					caretPos.x--;
+				}
+			}
+			break;
+
+		case VK_RIGHT:
+			if (endTextPos.x != caretPos.x  || endTextPos.y !=caretPos.y)
+			{
+				if (caretPos.y < indexesNewLines.size())
+				{
+					if (caretPos.x == indexesNewLines[caretPos.y])
+					{
+						caretPos.x = 0;
+						caretPos.y++;
+					}
+					else
+					{
+						caretPos.x++;
+					}
+				}
+				else
+				{
+					caretPos.x++;
+				}
+			}
+			break;
+
+		case VK_UP:
+			if (caretPos.y != 0)
 			{
 				caretPos.y--;
-				caretPos.x = indexesNewLines[caretPos.y];
-			}
-			else
-			{
-				caretPos.x--;
+			//	caretPos.x == indexesNewLines[caretPos.y];
 			}
 			break;
-		case VK_RIGHT:
-			if (caretPos.x == indexesNewLines[caretPos.y])
-			{
-				caretPos.x = 0;
-				caretPos.y++;
-			}
-			caretPos.x++;
-			break;
-		case VK_UP:
-			caretPos.y--;
-			break;
+
 		case VK_DOWN:
+			if (endTextPos.y != caretPos.y && endTextPos.x != caretPos.x)
 			caretPos.y++;
 			break;
 	}
