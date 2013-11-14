@@ -12,6 +12,7 @@ class ContentOfWindow
 private:
 	bool leftMouseButtonPressed;
 	bool selectionFlag;
+	bool waitingActionOnSelected;
 	vector<int> indexesNewLines;
 	HWND hWnd;
 	HDC hDC;
@@ -32,8 +33,10 @@ private:
 	void calculateLengthLine();
 	void calculateEndTextPos();
 	bool caretIncludeSelectArea(POINT caretPos);
-	int indexInTextByCaret();
+	bool deleteSelectedText();
+	int indexInTextByCaret(POINT caretPos);
 	POINT printCharOnDC(int indexCharInText, POINT currentPos);
+	void processorVkLeft();
 	void processorWkRight();
 	void validateRectsForPaint();
 public:

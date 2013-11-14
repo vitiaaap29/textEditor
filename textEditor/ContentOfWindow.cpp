@@ -9,16 +9,11 @@ ContentOfWindow::ContentOfWindow(HWND hWnd)
 	this->endTextPos.y = 0;
 	this->leftMouseButtonPressed = false;
 	this->selectionFlag = false;
+	this->waitingActionOnSelected = false;
 	this->shiftCaretAfterDrawing = 0;
 	hDC = GetDC(hWnd);
 	SelectObject(hDC, GetStockObject(SYSTEM_FIXED_FONT));
-	if (!GetClientRect(hWnd, &clientRect))
-	{
-		//тут надо генерировать исключение, что у нас трындец
-		// отлавливать исключение и выводить по нему MessageBox в WinProс
-		//это оставлю для Максима или Макрычева
-		//http://msdn.microsoft.com/en-us/library/windows/desktop/ms633503(v=vs.85).aspx
-	}
+	GetClientRect(hWnd, &clientRect);
 }
 
 ContentOfWindow::~ContentOfWindow(void)
@@ -48,6 +43,11 @@ void ContentOfWindow::drawText()
 		if (selectionFlag && caretIncludeSelectArea(currentPos))
 		{
 			SetBkColor(hDC,highlightColor);
+			waitingActionOnSelected = true;
+		}
+		else if (!selectionFlag)
+		{
+			waitingActionOnSelected = false;
 		}
 		currentPos =  printCharOnDC(i,currentPos);
 		SetBkColor(hDC,color);
@@ -77,7 +77,7 @@ void ContentOfWindow::mouseSelection(WPARAM wParam, LPARAM lParam)
 			InvalidateRect(hWnd, NULL, false);
 		}
 	}
-	else
+	else if (selectionFlag)
 	{
 		selectionFlag = false;
 	}
@@ -89,18 +89,7 @@ void ContentOfWindow::processorArrows(WPARAM wParam)
 	switch (wParam)
 	{
 		case VK_LEFT:
-			if (caretPos.x != 0 || caretPos.y !=0)
-			{
-				if (caretPos.x == 0)
-				{
-					caretPos.y--;
-					caretPos.x = indexesNewLines[caretPos.y];
-				}
-				else
-				{
-					caretPos.x--;
-				}
-			}
+			processorVkLeft();
 			break;
 
 		case VK_RIGHT:
@@ -139,7 +128,8 @@ bool ContentOfWindow::processorMenuMessages(WORD id)
 			wstring fromClipboard = (wchar_t*)GlobalLock(hData);
 			GlobalUnlock(hData);
 			CloseClipboard();
-			text.insert(indexInTextByCaret(), &fromClipboard.at(0), fromClipboard.size());
+			deleteSelectedText();
+			text.insert(indexInTextByCaret(caretPos), &fromClipboard.at(0), fromClipboard.size());
 			shiftCaretAfterDrawing = fromClipboard.size();
 			InvalidateRect(hWnd, NULL, false);
 		}
@@ -159,9 +149,9 @@ void ContentOfWindow::processorWmChar(WORD wParam)
 	switch (wParam)
 	{
 	case '\b':
-		if (caretPos.x > 0 || caretPos.y != 0)
+		if ( (caretPos.x > 0 || caretPos.y != 0) && !deleteSelectedText() )
 		{
-			int index = indexInTextByCaret();
+			int index = indexInTextByCaret(caretPos);
 			
 			if (caretPos.x != 0)
 			{
@@ -170,13 +160,14 @@ void ContentOfWindow::processorWmChar(WORD wParam)
 			else
 			{
 				caretPos.y--;
-				caretPos.x = indexesNewLines[caretPos.y - 1];
+				caretPos.x = indexesNewLines[caretPos.y];
 			}
 
 			text.erase(index-1,1);
 		}
 		break;
 	case '\t':
+		deleteSelectedText();
 		for (int i = 0; i < 4; i++)
 		{
 			addCharToText(L' ');
@@ -184,9 +175,11 @@ void ContentOfWindow::processorWmChar(WORD wParam)
 		break;
 	case '\r':
 	case '\n':
+		deleteSelectedText();
 		addCharToText(wParam);
 		break;
 	default:
+		deleteSelectedText();
 		addCharToText(wParam);
 		break;
 	}
@@ -197,6 +190,7 @@ void ContentOfWindow::setSizeAreaType(LPARAM param)
 {
 	clientSize.x = LOWORD(param);
 	clientSize.y = HIWORD(param);
+	GetClientRect(hWnd, &clientRect);
 	calculateLengthLine();
 }
 
@@ -225,7 +219,7 @@ void ContentOfWindow::workWithCaret(WORD message)
 void ContentOfWindow::addCharToText(WORD wParam)
 {
 	wchar_t addedSymbol = wParam;
-	int indexCharInText = indexInTextByCaret();
+	int indexCharInText = indexInTextByCaret(caretPos);
 
 	if ( text.size() == indexCharInText)
 	{
@@ -335,7 +329,29 @@ bool ContentOfWindow::caretIncludeSelectArea(POINT position)
 	return result;
 }
 
-int ContentOfWindow::indexInTextByCaret()
+bool ContentOfWindow::deleteSelectedText()
+{
+	bool result = false;
+	if (waitingActionOnSelected)
+	{
+		int startDeletedIndex = indexInTextByCaret(startForSelection);
+		int endDeletedIndex = indexInTextByCaret(caretPos);
+		int difference = max(startDeletedIndex,endDeletedIndex) - min(startDeletedIndex,endDeletedIndex);
+		text.erase(min(startDeletedIndex,endDeletedIndex), difference);
+		if (startDeletedIndex < endDeletedIndex)
+		{
+			for (int i = 0; i < difference; i++)
+			{
+				processorVkLeft();
+			}
+		}
+		selectionFlag = false;
+		result = true;
+	}
+	return result;
+}
+
+int ContentOfWindow::indexInTextByCaret(POINT caretPos)
 {
 	POINT currentCaretPos;
 	currentCaretPos.x = 0;
@@ -380,6 +396,22 @@ POINT ContentOfWindow::printCharOnDC(int indexCharInText, POINT currentPos)
 		currentPos.y++;
 	}
 	return currentPos;
+}
+
+void ContentOfWindow::processorVkLeft()
+{
+	if (caretPos.x != 0 || caretPos.y !=0)
+	{
+		if (caretPos.x == 0)
+		{
+			caretPos.y--;
+			caretPos.x = indexesNewLines[caretPos.y];
+		}
+		else
+		{
+			caretPos.x--;
+		}
+	}
 }
 
 void ContentOfWindow::processorWkRight()

@@ -16,10 +16,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         PostQuitMessage(0);
         break;
 	case WM_LBUTTONDOWN:
-	//case WM_RBUTTONDOWN:
 		content->CaretPosByCoordinates(lParam);
-		//content->leftMouseModePress(true);
-	//	content->mouseSelection(lParam);
 		content->setStartForSelection(lParam);
 		InvalidateRect(hWnd,NULL,true);
 		break;
