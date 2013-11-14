@@ -7,6 +7,8 @@ ContentOfWindow::ContentOfWindow(HWND hWnd)
 	this->caretPos.y = 0;
 	this->endTextPos.x = 1;
 	this->endTextPos.y = 0;
+	this->leftMouseButtonPressed = false;
+	this->selectionFlag = false;
 	hDC = GetDC(hWnd);
 	SelectObject(hDC, GetStockObject(SYSTEM_FIXED_FONT));
 	if (!GetClientRect(hWnd, &clientRect))
@@ -23,12 +25,9 @@ ContentOfWindow::~ContentOfWindow(void)
 	ReleaseDC(hWnd,hDC);
 }
 
-void ContentOfWindow::calulateCaretPosByCoordinates(LPARAM lParam)
+void ContentOfWindow::CaretPosByCoordinates(LPARAM lParam)
 {
-	int x = LOWORD(lParam);
-	int y = HIWORD(lParam);
-	caretPos.y = y / charSize.y;
-	caretPos.x = x / charSize.x;
+	caretPos = calculateCaretPosByCoordinates(lParam);
 }
 
 void ContentOfWindow::drawText()
@@ -41,12 +40,40 @@ void ContentOfWindow::drawText()
 	currentPos.y = 0;
 	int textSize = text._Mysize;
 	indexesNewLines.clear();
+	COLORREF color = GetBkColor(hDC);
+	COLORREF highlightColor = RGB(0, 255, 255);
 	for (int i = 0; i < textSize; i++)
 	{
+		if (selectionFlag && caretIncludeSelectArea(currentPos))
+		{
+			SetBkColor(hDC,highlightColor);
+		}
 		currentPos =  printCharOnDC(i,currentPos);
+		SetBkColor(hDC,color);
 	}
 	SetCaretPos(caretPos.x * charSize.x, caretPos.y * charSize.y );
 	ShowCaret(hWnd);
+}
+
+void ContentOfWindow::mouseSelection(WPARAM wParam, LPARAM lParam)
+{
+	POINT currentCaretPos = calculateCaretPosByCoordinates(lParam);
+	POINT difference;
+	if (wParam == MK_LBUTTON)
+	{
+		difference.x = currentCaretPos.x - caretPos.x;
+		difference.y = currentCaretPos.y - caretPos.y;
+		if (difference.x != 0 || difference.y != 0)
+		{
+			selectionFlag = true;
+			caretPos = currentCaretPos;
+			InvalidateRect(hWnd, NULL, false);
+		}
+	}
+	else
+	{
+		selectionFlag = false;
+	}
 }
 
 void ContentOfWindow::processorArrows(WORD wParam) 
@@ -159,6 +186,11 @@ void ContentOfWindow::setSizeAreaType(LPARAM param)
 	calculateLengthLine();
 }
 
+void ContentOfWindow::setStartForSelection(LPARAM lParam)
+{
+	startForSelection = calculateCaretPosByCoordinates(lParam);
+}
+
 void ContentOfWindow::workWithCaret(WORD message)
 {
 	calculateCharSize();
@@ -201,6 +233,16 @@ void ContentOfWindow::addCharToText(WORD wParam)
 	}
 }
 
+POINT ContentOfWindow::calculateCaretPosByCoordinates(LPARAM lParam)
+{
+	POINT caretPosition;
+	int x = LOWORD(lParam);
+	int y = HIWORD(lParam);
+	caretPosition.y = y / charSize.y;
+	caretPosition.x = x / charSize.x;
+	return caretPosition;
+}
+
 void ContentOfWindow::calculateCharSize()
 {
 	TEXTMETRIC tm;
@@ -235,6 +277,50 @@ void ContentOfWindow::calculateEndTextPos()
 	endTextPos = currentEnd;
 }
 
+bool ContentOfWindow::caretIncludeSelectArea(POINT position)
+{
+	bool result = false;
+	if (startForSelection.y == caretPos.y && caretPos.y == position.y)
+	{
+		if ( position.x >= min(startForSelection.x,caretPos.x ) &&  position.x < max(startForSelection.x, caretPos.x) )
+		{
+			result = true;
+		}
+	}
+	else
+	{
+		if (position.y > min(startForSelection.y, caretPos.y) && position.y < max(startForSelection.y, caretPos.y))
+		{
+			result = true;
+		}
+		else if(position.y == max(startForSelection.y, caretPos.y) )
+		{
+			POINT posMaxY = (startForSelection.y > caretPos.y) ? startForSelection: caretPos;
+			if (position.x < posMaxY.x)
+			{
+				result = true;
+			}
+			else
+			{
+				result = false;
+			}
+		}
+		else if (position.y == min(startForSelection.y, caretPos.y) )
+		{
+			POINT posMinY = (startForSelection.y < caretPos.y) ? startForSelection: caretPos;
+			if (position.x >= posMinY.x)
+			{
+				result = true;
+			}
+			else
+			{
+				result = false;
+			}
+		}
+	}
+	return result;
+}
+
 int ContentOfWindow::indexInTextByCaret()
 {
 	POINT currentCaretPos;
@@ -255,18 +341,6 @@ int ContentOfWindow::indexInTextByCaret()
 		}
 	}
 	return index;
-}
-
-int ContentOfWindow::posXInline(int posY)
-{
-	POINT currentPos;
-	currentPos.x = 0;
-	currentPos.y = 0;
-	for (int i = 0; i < (int)text.size() && posY != currentPos.y; i++)
-	{
-
-	}
-	return 0;
 }
 
 POINT ContentOfWindow::printCharOnDC(int indexCharInText, POINT currentPos)
