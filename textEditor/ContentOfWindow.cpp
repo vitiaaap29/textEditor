@@ -178,6 +178,23 @@ bool ContentOfWindow::processorMenuMessages(WORD id)
 			InvalidateRect(hWnd, NULL, false);
 		}
 		break;
+	case ID_CTRL_C:
+		if (OpenClipboard(hWnd))
+		{
+			EmptyClipboard();
+			int startCopyIndex = indexInTextByCaret(startForSelection);
+			int endCopyIndex = indexInTextByCaret(caretPos);
+			int minIndex = min(startCopyIndex,endCopyIndex);
+			int difference = max(startCopyIndex,endCopyIndex) - minIndex + 1;
+			HGLOBAL hglbCopy = GlobalAlloc(GMEM_MOVEABLE, difference * sizeof(wchar_t));
+			wchar_t* lptstrCopy = (wchar_t*)GlobalLock(hglbCopy); 
+			memcpy(lptstrCopy,&text[minIndex],difference * sizeof(wchar_t));
+			GlobalUnlock(hglbCopy);
+			SetClipboardData(CF_UNICODETEXT, hglbCopy);
+			CloseClipboard();
+			InvalidateRect(hWnd, NULL, false);
+		}
+		break;
 	case ID_SAVE_FILE:
 		//тут Лёшина функция будет вызываться
 		break;
@@ -193,7 +210,7 @@ void ContentOfWindow::processorWmChar(WORD wParam)
 	switch (wParam)
 	{
 	case '\b':
-		if ( (caretPos.x > 0 || caretPos.y != 0) && !deleteSelectedText() )
+		if ( !deleteSelectedText() && (caretPos.x > 0 || caretPos.y != 0) )
 		{
 			int index = indexInTextByCaret(caretPos);
 			
