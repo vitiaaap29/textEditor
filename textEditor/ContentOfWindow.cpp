@@ -97,16 +97,60 @@ void ContentOfWindow::processorArrows(WPARAM wParam)
 			break;
 
 		case VK_UP:
-			if (caretPos.y != 0)
+			if (caretPos.y != 0 && caretPos.y < endTextPos.y)
 			{
-				caretPos.y--;
-			//	caretPos.x == indexesNewLines[caretPos.y];
+				if (caretPos.x >= indexesNewLines[caretPos.y-1])
+				{
+					if (indexesNewLines[caretPos.y-1] < indexesNewLines[caretPos.y])
+					{
+						caretPos.y--;
+						caretPos.x = indexesNewLines[caretPos.y];
+					}
+					else
+					{
+						caretPos.y--;
+					}
+				}
+				else
+				{
+					caretPos.y--;	
+				}
+			}
+			else if(caretPos.y == endTextPos.y)
+			{
+				if (caretPos.x >= indexesNewLines[caretPos.y-1])
+				{
+					if (indexesNewLines[caretPos.y-1] < endTextPos.x)
+					{
+						caretPos.y--;
+						caretPos.x = indexesNewLines[caretPos.y];
+					}
+					else
+					{
+						caretPos.y--;
+					}
+				}
+				else
+				{
+					caretPos.y--;	
+				}
 			}
 			break;
 
 		case VK_DOWN:
-			if (endTextPos.y != caretPos.y && endTextPos.x != caretPos.x)
-			caretPos.y++;
+			if (caretPos.y < endTextPos.y-1)
+			{
+				caretPos.y++;
+				if (caretPos.x > indexesNewLines[caretPos.y])
+				{
+					caretPos.x = indexesNewLines[caretPos.y];
+				}
+
+			}
+			else if (caretPos.y < endTextPos.y)
+			{
+				caretPos.y++;
+			}
 			break;
 	}
 	SetCaretPos(caretPos.x * charSize.x, caretPos.y * charSize.y );
