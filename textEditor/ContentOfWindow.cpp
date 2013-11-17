@@ -195,6 +195,9 @@ bool ContentOfWindow::processorMenuMessages(WORD id)
 			InvalidateRect(hWnd, NULL, false);
 		}
 		break;
+	case ID_IMAGE_LOAD:
+		openImage();
+		break;
 	case ID_SAVE_FILE:
 		//тут Лёшина функция будет вызываться
 		break;
@@ -412,6 +415,25 @@ bool ContentOfWindow::deleteSelectedText()
 	return result;
 }
 
+void ContentOfWindow::drawImage(HBITMAP hBitmap, POINT start)
+{
+	BITMAP bm;
+	HDC hdcMem;
+	POINT ptSize, ptOrg;
+	hdcMem = CreateCompatibleDC(hDC);
+	SelectObject(hdcMem, hBitmap);
+	SetMapMode(hdcMem, GetMapMode(hDC));
+	GetObject(hBitmap, sizeof(BITMAP),(LPVOID) &bm);
+	ptSize.x = bm.bmWidth;
+	ptSize.y = bm.bmHeight;
+	DPtoLP(hDC, &ptSize, 1);
+	ptOrg.x = 0;
+	ptOrg.y = 0;
+	DPtoLP(hdcMem, &ptOrg, 1);
+	BitBlt(hDC, start.x, start.y, ptSize.x, ptSize.y, hdcMem, ptOrg.x, ptOrg.y, SRCCOPY);
+	DeleteDC(hdcMem);
+}
+
 int ContentOfWindow::indexInTextByCaret(POINT caretPos)
 {
 	POINT currentCaretPos;
@@ -432,6 +454,72 @@ int ContentOfWindow::indexInTextByCaret(POINT caretPos)
 		}
 	}
 	return index;
+}
+
+OPENFILENAME ContentOfWindow::initializeStructOpenFilename(wstring filter)
+{
+	OPENFILENAME ofn;       // common dialog box structure
+	wchar_t szFile[260];       // buffer for file name
+	// Initialize OPENFILENAME
+	ZeroMemory(&ofn, sizeof(ofn));
+	ofn.lStructSize = sizeof(ofn);
+	ofn.hwndOwner = hWnd;
+	ofn.lpstrFile = szFile;
+	// Set lpstrFile[0] to '\0' so that GetOpenFileName does not 
+	// use the contents of szFile to initialize itself.
+	ofn.lpstrFile[0] = '\0';
+	ofn.nMaxFile = sizeof(szFile);
+	ofn.lpstrFilter = NULL;//filter.c_str();//L"All\0*.*\0Image\0*.PNG\0";
+	ofn.nFilterIndex = 1;
+	ofn.lpstrFileTitle = NULL;
+	ofn.nMaxFileTitle = 0;
+	ofn.lpstrInitialDir = NULL;
+	ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
+	return ofn;
+}
+
+void ContentOfWindow::openImage()
+{
+	OPENFILENAME ofn = initializeStructOpenFilename(L"");//All\0*.*\0Image\0*.PNG\0\0
+	if(GetOpenFileName(&ofn))
+    {
+		//InvalidateRect(hWnd,&clientRect,false);
+		DWORD dw;
+		HBITMAP hBitmap = (HBITMAP)LoadImage(NULL, ofn.lpstrFile, IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
+		if (hBitmap == NULL)
+		{
+			dw = GetLastError();
+			int i = 5;
+		}
+		POINT start;
+		start.x = caretPos.x * charSize.x;
+		start.y = caretPos.y * charSize.y;
+		drawImage(hBitmap, start);
+		/*BITMAP	bitmap;
+		HDC		hdcMem;*/
+		//HGDIOBJ	oldBitmap;
+
+//		hdcMem = CreateCompatibleDC(hDC);
+//        //oldBitmap = SelectObject(hdcMem, hBitmap);
+//
+//        GetObject(hBitmap, sizeof(bitmap),(LPSTR)&bitmap);
+//		SelectObject(hdcMem, hBitmap);
+//		int  ii = BitBlt(hDC, 0, 0, bitmap.bmWidth, bitmap.bmHeight, hdcMem, 0, 0, SRCCOPY);
+///*
+//		HDC hdcScreen = GetDC(NULL);
+//        
+//		SetStretchBltMode(hDC,HALFTONE);
+//		StretchBlt(hDC, 
+//               0,0, 
+//			   clientRect.right, clientRect.bottom, 
+//               hdcScreen, 
+//               0,0,
+//               GetSystemMetrics (SM_CXSCREEN),
+//               GetSystemMetrics (SM_CYSCREEN),
+//               SRCCOPY);*/
+//        //SelectObject(hdcMem, oldBitmap);
+//        DeleteDC(hdcMem);
+    }
 }
 
 POINT ContentOfWindow::printCharOnDC(int indexCharInText, POINT currentPos)

@@ -33,8 +33,11 @@ private:
 	void calculateLengthLine();
 	void calculateEndTextPos();
 	bool caretIncludeSelectArea(POINT caretPos);
+	OPENFILENAME initializeStructOpenFilename(wstring filter);
 	bool deleteSelectedText();
+	void drawImage(HBITMAP hBitmap, POINT start);
 	int indexInTextByCaret(POINT caretPos);
+	void openImage();
 	POINT printCharOnDC(int indexCharInText, POINT currentPos);
 	void processorVkLeft();
 	void processorWkRight();
