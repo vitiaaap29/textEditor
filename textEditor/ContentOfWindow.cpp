@@ -417,6 +417,18 @@ bool ContentOfWindow::deleteSelectedText()
 
 void ContentOfWindow::drawImage(HBITMAP hBitmap, POINT start)
 {
+	BITMAP	bitmap;
+	HDC		hdcMem = CreateCompatibleDC(hDC);
+    GetObject(hBitmap, sizeof(bitmap),(LPSTR)&bitmap);
+	SelectObject(hdcMem, hBitmap);
+	RECT rect = {start.x, start.y, start.x + bitmap.bmWidth, start.y + bitmap.bmHeight};
+	ValidateRect(hWnd, &rect);
+	BitBlt(hDC, start.x, start.y, bitmap.bmWidth, bitmap.bmHeight, hdcMem, 0, 0, SRCCOPY);
+    DeleteDC(hdcMem);
+}
+
+void ContentOfWindow::drawImageByPetzold(HBITMAP hBitmap, POINT start)
+{
 	BITMAP bm;
 	HDC hdcMem;
 	POINT ptSize, ptOrg;
@@ -430,7 +442,11 @@ void ContentOfWindow::drawImage(HBITMAP hBitmap, POINT start)
 	ptOrg.x = 0;
 	ptOrg.y = 0;
 	DPtoLP(hdcMem, &ptOrg, 1);
-	BitBlt(hDC, start.x, start.y, ptSize.x, ptSize.y, hdcMem, ptOrg.x, ptOrg.y, SRCCOPY);
+	//BitBlt(hDC, start.x, start.y, ptSize.x, ptSize.y, hdcMem, ptOrg.x, ptOrg.y, SRCCOPY);
+	StretchBlt(hDC,start.x, start.y,
+	 ptSize.x, ptSize.y,
+		hdcMem, 0, 0, ptSize.x, ptSize.y, SRCCOPY);
+	 DeleteDC(hdcMem);
 	DeleteDC(hdcMem);
 }
 
@@ -483,42 +499,14 @@ void ContentOfWindow::openImage()
 	OPENFILENAME ofn = initializeStructOpenFilename(L"");//All\0*.*\0Image\0*.PNG\0\0
 	if(GetOpenFileName(&ofn))
     {
-		//InvalidateRect(hWnd,&clientRect,false);
-		DWORD dw;
 		HBITMAP hBitmap = (HBITMAP)LoadImage(NULL, ofn.lpstrFile, IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
-		if (hBitmap == NULL)
+		if (hBitmap != NULL)
 		{
-			dw = GetLastError();
-			int i = 5;
+			POINT start;
+			start.x = caretPos.x * charSize.x;
+			start.y = caretPos.y * charSize.y;
+			drawImage(hBitmap,start);
 		}
-		POINT start;
-		start.x = caretPos.x * charSize.x;
-		start.y = caretPos.y * charSize.y;
-		drawImage(hBitmap, start);
-		/*BITMAP	bitmap;
-		HDC		hdcMem;*/
-		//HGDIOBJ	oldBitmap;
-
-//		hdcMem = CreateCompatibleDC(hDC);
-//        //oldBitmap = SelectObject(hdcMem, hBitmap);
-//
-//        GetObject(hBitmap, sizeof(bitmap),(LPSTR)&bitmap);
-//		SelectObject(hdcMem, hBitmap);
-//		int  ii = BitBlt(hDC, 0, 0, bitmap.bmWidth, bitmap.bmHeight, hdcMem, 0, 0, SRCCOPY);
-///*
-//		HDC hdcScreen = GetDC(NULL);
-//        
-//		SetStretchBltMode(hDC,HALFTONE);
-//		StretchBlt(hDC, 
-//               0,0, 
-//			   clientRect.right, clientRect.bottom, 
-//               hdcScreen, 
-//               0,0,
-//               GetSystemMetrics (SM_CXSCREEN),
-//               GetSystemMetrics (SM_CYSCREEN),
-//               SRCCOPY);*/
-//        //SelectObject(hdcMem, oldBitmap);
-//        DeleteDC(hdcMem);
     }
 }
 

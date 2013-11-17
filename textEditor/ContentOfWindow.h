@@ -35,6 +35,7 @@ private:
 	bool caretIncludeSelectArea(POINT caretPos);
 	OPENFILENAME initializeStructOpenFilename(wstring filter);
 	bool deleteSelectedText();
+	void drawImageByPetzold(HBITMAP hBitmap, POINT start);
 	void drawImage(HBITMAP hBitmap, POINT start);
 	int indexInTextByCaret(POINT caretPos);
 	void openImage();
