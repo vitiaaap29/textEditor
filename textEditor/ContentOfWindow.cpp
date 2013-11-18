@@ -14,10 +14,13 @@ ContentOfWindow::ContentOfWindow(HWND hWnd)
 	hDC = GetDC(hWnd);
 	SelectObject(hDC, GetStockObject(SYSTEM_FIXED_FONT));
 	GetClientRect(hWnd, &clientRect);
+	Gdiplus::GdiplusStartupInput gdiplusStartupInput;
+    Gdiplus::GdiplusStartup(&gdiplusToken, &gdiplusStartupInput, NULL);
 }
 
 ContentOfWindow::~ContentOfWindow(void)
 {
+	Gdiplus::GdiplusShutdown(gdiplusToken);
 	ReleaseDC(hWnd,hDC);
 }
 
@@ -415,39 +418,13 @@ bool ContentOfWindow::deleteSelectedText()
 	return result;
 }
 
-void ContentOfWindow::drawImage(HBITMAP hBitmap, POINT start)
+void ContentOfWindow::drawImage(Gdiplus::Image* pImage, POINT start)
 {
-	BITMAP	bitmap;
-	HDC		hdcMem = CreateCompatibleDC(hDC);
-    GetObject(hBitmap, sizeof(bitmap),(LPSTR)&bitmap);
-	SelectObject(hdcMem, hBitmap);
-	RECT rect = {start.x, start.y, start.x + bitmap.bmWidth, start.y + bitmap.bmHeight};
+	RECT rect = {start.x, start.y, pImage->GetWidth(), pImage->GetHeight()};
+	Gdiplus::Rect imageRect(start.x, start.y, pImage->GetWidth(), pImage->GetHeight());
 	ValidateRect(hWnd, &rect);
-	BitBlt(hDC, start.x, start.y, bitmap.bmWidth, bitmap.bmHeight, hdcMem, 0, 0, SRCCOPY);
-    DeleteDC(hdcMem);
-}
-
-void ContentOfWindow::drawImageByPetzold(HBITMAP hBitmap, POINT start)
-{
-	BITMAP bm;
-	HDC hdcMem;
-	POINT ptSize, ptOrg;
-	hdcMem = CreateCompatibleDC(hDC);
-	SelectObject(hdcMem, hBitmap);
-	SetMapMode(hdcMem, GetMapMode(hDC));
-	GetObject(hBitmap, sizeof(BITMAP),(LPVOID) &bm);
-	ptSize.x = bm.bmWidth;
-	ptSize.y = bm.bmHeight;
-	DPtoLP(hDC, &ptSize, 1);
-	ptOrg.x = 0;
-	ptOrg.y = 0;
-	DPtoLP(hdcMem, &ptOrg, 1);
-	//BitBlt(hDC, start.x, start.y, ptSize.x, ptSize.y, hdcMem, ptOrg.x, ptOrg.y, SRCCOPY);
-	StretchBlt(hDC,start.x, start.y,
-	 ptSize.x, ptSize.y,
-		hdcMem, 0, 0, ptSize.x, ptSize.y, SRCCOPY);
-	 DeleteDC(hdcMem);
-	DeleteDC(hdcMem);
+	Gdiplus::Graphics graphics(hWnd);
+	graphics.DrawImage(pImage, imageRect);
 }
 
 int ContentOfWindow::indexInTextByCaret(POINT caretPos)
@@ -472,20 +449,15 @@ int ContentOfWindow::indexInTextByCaret(POINT caretPos)
 	return index;
 }
 
-OPENFILENAME ContentOfWindow::initializeStructOpenFilename(wstring filter)
+OPENFILENAME ContentOfWindow::initializeStructOpenFilename(wchar_t *filename)
 {
-	OPENFILENAME ofn;       // common dialog box structure
-	wchar_t szFile[260];       // buffer for file name
-	// Initialize OPENFILENAME
+	OPENFILENAME ofn;
 	ZeroMemory(&ofn, sizeof(ofn));
 	ofn.lStructSize = sizeof(ofn);
 	ofn.hwndOwner = hWnd;
-	ofn.lpstrFile = szFile;
-	// Set lpstrFile[0] to '\0' so that GetOpenFileName does not 
-	// use the contents of szFile to initialize itself.
-	ofn.lpstrFile[0] = '\0';
-	ofn.nMaxFile = sizeof(szFile);
-	ofn.lpstrFilter = NULL;//filter.c_str();//L"All\0*.*\0Image\0*.PNG\0";
+	ofn.lpstrFile = filename;
+	ofn.nMaxFile = sizeof(*filename) * 256;
+	ofn.lpstrFilter = NULL;//L"All\0*.*\0Image\0*.PNG\0";
 	ofn.nFilterIndex = 1;
 	ofn.lpstrFileTitle = NULL;
 	ofn.nMaxFileTitle = 0;
@@ -496,17 +468,19 @@ OPENFILENAME ContentOfWindow::initializeStructOpenFilename(wstring filter)
 
 void ContentOfWindow::openImage()
 {
-	OPENFILENAME ofn = initializeStructOpenFilename(L"");//All\0*.*\0Image\0*.PNG\0\0
+	wchar_t filename[256] = {0};
+	OPENFILENAME ofn = initializeStructOpenFilename(filename);
 	if(GetOpenFileName(&ofn))
     {
-		HBITMAP hBitmap = (HBITMAP)LoadImage(NULL, ofn.lpstrFile, IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE);
-		if (hBitmap != NULL)
+		POINT start;
+		start.x = caretPos.x * charSize.x;
+		start.y = caretPos.y * charSize.y;
+		Gdiplus::Image* image = Gdiplus::Image::FromFile((WCHAR*)filename);
+		if (GetLastError() == ERROR_SUCCESS)
 		{
-			POINT start;
-			start.x = caretPos.x * charSize.x;
-			start.y = caretPos.y * charSize.y;
-			drawImage(hBitmap,start);
+			drawImage(image,start);
 		}
+		delete image;
     }
 }
 

@@ -26,17 +26,16 @@ private:
 	RECT clientRect;
 	HFONT font;
 	int lengthLine;
-
+	ULONG_PTR gdiplusToken;
 	void addCharToText(WORD wParam);
 	POINT calculateCaretPosByCoordinates(LPARAM lParam);
 	void calculateCharSize();
 	void calculateLengthLine();
 	void calculateEndTextPos();
 	bool caretIncludeSelectArea(POINT caretPos);
-	OPENFILENAME initializeStructOpenFilename(wstring filter);
+	OPENFILENAME initializeStructOpenFilename(wchar_t *filename);
 	bool deleteSelectedText();
-	void drawImageByPetzold(HBITMAP hBitmap, POINT start);
-	void drawImage(HBITMAP hBitmap, POINT start);
+	void drawImage(Gdiplus::Image* pImage, POINT start);
 	int indexInTextByCaret(POINT caretPos);
 	void openImage();
 	POINT printCharOnDC(int indexCharInText, POINT currentPos);
