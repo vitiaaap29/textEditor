@@ -15,6 +15,18 @@ class ContentOfWindow
 		int start;
 	};
 
+	struct CharInfo
+	{
+	private:
+		HFONT* pfont;
+		POINT pixelPos;
+		POINT size;
+		Gdiplus::Image* image;
+	public:
+		CharInfo(){};
+		CharInfo(HFONT* pfont);
+	};
+
 private:
 	static const WORD SYMBOL_SIGN_PICTURES = 0x265E;
 	bool leftMouseButtonPressed;
@@ -24,6 +36,7 @@ private:
 	HWND hWnd;
 	HDC hDC;
 	wstring text;
+	vector<CharInfo> chars;
 	POINT caretPos;
 	POINT clientSize;
 	POINT charSize;
@@ -33,6 +46,7 @@ private:
 	int shiftCaretAfterDrawing;
 	RECT clientRect;
 	HFONT font;
+	vector<HFONT> fonts;
 	int lengthLine;
 	ULONG_PTR gdiplusToken;
 	vector<Gdiplus::Image*> images;
@@ -48,7 +62,9 @@ private:
 	void drawImage(Gdiplus::Image* pImage, POINT start);
 	int heigthLine(int startIndex);
 	int indexInTextByCaret(POINT caretPos);
+	void initializeFonts(); //for you
 	void openImage();
+	POINT pixelByIndex(int index);
 	POINT printCharOnDC(int indexCharInText, POINT currentPos, LineInfo lineInfo);
 	void processorVkLeft();
 	void processorWkRight();
