@@ -9,11 +9,18 @@ using namespace std;
 
 class ContentOfWindow
 {
+	struct LineInfo
+	{
+		int heigth;
+		int start;
+	};
+
 private:
+	static const WORD SYMBOL_SIGN_PICTURES = 0x265E;
 	bool leftMouseButtonPressed;
 	bool selectionFlag;
 	bool waitingActionOnSelected;
-	vector<int> indexesNewLines;
+	vector<POINT> indexesNewLines;
 	HWND hWnd;
 	HDC hDC;
 	wstring text;
@@ -22,11 +29,14 @@ private:
 	POINT charSize;
 	POINT endTextPos;
 	POINT startForSelection;
+	POINT pixelPos;
 	int shiftCaretAfterDrawing;
 	RECT clientRect;
 	HFONT font;
 	int lengthLine;
 	ULONG_PTR gdiplusToken;
+	vector<Gdiplus::Image*> images;
+
 	void addCharToText(WORD wParam);
 	POINT calculateCaretPosByCoordinates(LPARAM lParam);
 	void calculateCharSize();
@@ -36,11 +46,13 @@ private:
 	OPENFILENAME initializeStructOpenFilename(wchar_t *filename);
 	bool deleteSelectedText();
 	void drawImage(Gdiplus::Image* pImage, POINT start);
+	int heigthLine(int startIndex);
 	int indexInTextByCaret(POINT caretPos);
 	void openImage();
-	POINT printCharOnDC(int indexCharInText, POINT currentPos);
+	POINT printCharOnDC(int indexCharInText, POINT currentPos, LineInfo lineInfo);
 	void processorVkLeft();
 	void processorWkRight();
+	POINT realLinesSize(POINT caret);
 	void validateRectsForPaint();
 public:
 	ContentOfWindow(HWND hWnd);

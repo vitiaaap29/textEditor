@@ -20,6 +20,10 @@ ContentOfWindow::ContentOfWindow(HWND hWnd)
 
 ContentOfWindow::~ContentOfWindow(void)
 {
+	for (int i = 0; i < (int)images.size(); i++)
+	{
+		delete images.at(i);
+	}
 	Gdiplus::GdiplusShutdown(gdiplusToken);
 	ReleaseDC(hWnd,hDC);
 }
@@ -34,15 +38,29 @@ void ContentOfWindow::drawText()
 	HideCaret(hWnd);
 	FillRect(hDC, &clientRect, (HBRUSH) (COLOR_WINDOW+1));
 	validateRectsForPaint();
+	
+	pixelPos.x = 0;
+	pixelPos.y = 0;
 	POINT currentPos;
 	currentPos.x = 0;
 	currentPos.y = 0;
 	int textSize = text._Mysize;
+
 	indexesNewLines.clear();
 	COLORREF color = GetBkColor(hDC);
 	COLORREF highlightColor = RGB(0, 255, 255);
+	LineInfo line;
+	line.start = -charSize.y;
+	int oldNumberLine = -1;
 	for (int i = 0; i < textSize; i++)
 	{
+		if (oldNumberLine != currentPos.y)
+		{
+			oldNumberLine = currentPos.y;
+			line.heigth = heigthLine(i);
+			line.start += line.heigth;
+		}
+
 		if (selectionFlag && caretIncludeSelectArea(currentPos))
 		{
 			SetBkColor(hDC,highlightColor);
@@ -52,7 +70,21 @@ void ContentOfWindow::drawText()
 		{
 			waitingActionOnSelected = false;
 		}
-		currentPos =  printCharOnDC(i,currentPos);
+
+		if (text[i] != SYMBOL_SIGN_PICTURES)
+		{
+			currentPos =  printCharOnDC(i,currentPos, line);
+		}
+		else
+		{
+			int indexImage = text[++i] - '0';
+			if ( indexImage < (int)images.size() - 1 )
+			{
+				POINT upperLeftCorner = {pixelPos.x, line.start};
+				drawImage(images[indexImage], upperLeftCorner);
+				pixelPos.x += images[indexImage]->GetWidth();
+			}
+		}
 		SetBkColor(hDC,color);
 	}
 
@@ -102,12 +134,12 @@ void ContentOfWindow::processorArrows(WPARAM wParam)
 		case VK_UP:
 			if (caretPos.y != 0 && caretPos.y < endTextPos.y)
 			{
-				if (caretPos.x >= indexesNewLines[caretPos.y-1])
+				if (caretPos.x >= indexesNewLines[caretPos.y-1].x)
 				{
-					if (indexesNewLines[caretPos.y-1] < indexesNewLines[caretPos.y])
+					if (indexesNewLines[caretPos.y-1].x < indexesNewLines[caretPos.y].x)
 					{
 						caretPos.y--;
-						caretPos.x = indexesNewLines[caretPos.y];
+						caretPos.x = indexesNewLines[caretPos.y].x;
 					}
 					else
 					{
@@ -121,12 +153,12 @@ void ContentOfWindow::processorArrows(WPARAM wParam)
 			}
 			else if(caretPos.y == endTextPos.y)
 			{
-				if (caretPos.x >= indexesNewLines[caretPos.y-1])
+				if (caretPos.x >= indexesNewLines[caretPos.y-1].x)
 				{
-					if (indexesNewLines[caretPos.y-1] < endTextPos.x)
+					if (indexesNewLines[caretPos.y-1].x < endTextPos.x)
 					{
 						caretPos.y--;
-						caretPos.x = indexesNewLines[caretPos.y];
+						caretPos.x = indexesNewLines[caretPos.y].x;
 					}
 					else
 					{
@@ -144,9 +176,9 @@ void ContentOfWindow::processorArrows(WPARAM wParam)
 			if (caretPos.y < endTextPos.y-1)
 			{
 				caretPos.y++;
-				if (caretPos.x > indexesNewLines[caretPos.y])
+				if (caretPos.x > indexesNewLines[caretPos.y].x)
 				{
-					caretPos.x = indexesNewLines[caretPos.y];
+					caretPos.x = indexesNewLines[caretPos.y].x;
 				}
 
 			}
@@ -227,7 +259,7 @@ void ContentOfWindow::processorWmChar(WORD wParam)
 			else
 			{
 				caretPos.y--;
-				caretPos.x = indexesNewLines[caretPos.y];
+				caretPos.x = indexesNewLines[caretPos.y].x;
 			}
 
 			text.erase(index-1,1);
@@ -427,6 +459,38 @@ void ContentOfWindow::drawImage(Gdiplus::Image* pImage, POINT start)
 	graphics.DrawImage(pImage, imageRect);
 }
 
+int ContentOfWindow::heigthLine(int startIndex)
+{
+	int result = charSize.y;
+	int foundSignImage = text.find(SYMBOL_SIGN_PICTURES, startIndex);
+	if (foundSignImage != wstring::npos)
+	{
+		int foundNewline = text.find('\r', startIndex);
+		if (foundNewline != wstring::npos && foundNewline > foundSignImage)
+		{
+			int yCurrentPos = 0;
+			int xInPixel = clientSize.x;
+			for (int i = startIndex; xInPixel > charSize.x && i < foundNewline;i++)
+			{
+				if (text[i] != SYMBOL_SIGN_PICTURES)
+				{
+					xInPixel -= charSize.x;
+				}
+				else
+				{
+					int indexImage = text[++i] - '0'; 
+					if (indexImage < (int)images.size() - 1)
+					{
+						xInPixel -= images[indexImage]->GetWidth();
+						result = images[indexImage]->GetHeight();
+					}
+				}
+			}
+		}
+	}
+	return result;
+}
+
 int ContentOfWindow::indexInTextByCaret(POINT caretPos)
 {
 	POINT currentCaretPos;
@@ -457,7 +521,7 @@ OPENFILENAME ContentOfWindow::initializeStructOpenFilename(wchar_t *filename)
 	ofn.hwndOwner = hWnd;
 	ofn.lpstrFile = filename;
 	ofn.nMaxFile = sizeof(*filename) * 256;
-	ofn.lpstrFilter = NULL;//L"All\0*.*\0Image\0*.PNG\0";
+	ofn.lpstrFilter = L"Image\0*.bmp\0*.jpg\0";
 	ofn.nFilterIndex = 1;
 	ofn.lpstrFileTitle = NULL;
 	ofn.nMaxFileTitle = 0;
@@ -480,31 +544,42 @@ void ContentOfWindow::openImage()
 		{
 			drawImage(image,start);
 		}
-		delete image;
+		images.push_back(image);
+		addCharToText(SYMBOL_SIGN_PICTURES);
+		int i = 90;
+		addCharToText((WORD)(images.size() - 1 + '0'));
     }
 }
 
-POINT ContentOfWindow::printCharOnDC(int indexCharInText, POINT currentPos)
+POINT ContentOfWindow::printCharOnDC(int indexCharInText, POINT currentPos, LineInfo lineInfo)
 {
 	LPCWSTR printedChar = &text.c_str()[indexCharInText];
+	POINT line;
 	wchar_t ch = text.at(indexCharInText);
 	if (ch != '\r' && currentPos.x != lengthLine)
 	{
-		TextOut(hDC, currentPos.x * charSize.x, currentPos.y * charSize.y, printedChar, 1);
+		TextOut(hDC, currentPos.x * charSize.x, lineInfo.start - charSize.y + lineInfo.heigth, printedChar, 1);
 		currentPos.x++;
-	}
+		pixelPos.x += charSize.x;
+	}	
 	else if (currentPos.x == lengthLine)
 	{
-		TextOut(hDC, currentPos.x * charSize.x, currentPos.y * charSize.y, printedChar, 1);
-		indexesNewLines.push_back(currentPos.x);
+		TextOut(hDC, currentPos.x * charSize.x, lineInfo.start - charSize.y + lineInfo.heigth, printedChar, 1);
+		line.x = currentPos.x;
+		line.y = lineInfo.heigth;
+		indexesNewLines.push_back(line);
 		currentPos.x = 0;
 		currentPos.y++;
+		pixelPos.x = 0;
 	}
 	else
 	{
-		indexesNewLines.push_back(currentPos.x);
+		line.x = currentPos.x;
+		line.y = lineInfo.heigth;
+		indexesNewLines.push_back(line);
 		currentPos.x = 0;
 		currentPos.y++;
+		pixelPos.x = 0;
 	}
 	return currentPos;
 }
@@ -516,7 +591,7 @@ void ContentOfWindow::processorVkLeft()
 		if (caretPos.x == 0)
 		{
 			caretPos.y--;
-			caretPos.x = indexesNewLines[caretPos.y];
+			caretPos.x = indexesNewLines[caretPos.y].x;
 		}
 		else
 		{
@@ -531,7 +606,7 @@ void ContentOfWindow::processorWkRight()
 	{
 		if (caretPos.y < (int)indexesNewLines.size())
 		{
-			if (caretPos.x == indexesNewLines[caretPos.y])
+			if (caretPos.x == indexesNewLines[caretPos.y].x)
 			{
 				caretPos.x = 0;
 				caretPos.y++;
@@ -546,6 +621,12 @@ void ContentOfWindow::processorWkRight()
 			caretPos.x++;
 		}
 	}
+}
+
+POINT ContentOfWindow::realLinesSize(POINT caret)
+{
+	int indexInText = indexInTextByCaret(caret);
+	return caret;
 }
 
 void ContentOfWindow::validateRectsForPaint()

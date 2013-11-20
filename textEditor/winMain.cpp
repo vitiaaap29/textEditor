@@ -57,7 +57,7 @@ bool initWindow(LPCTSTR szClassName, LPCTSTR szTitle, HINSTANCE hInstance, int n
 		szClassName, 
 		szTitle, WS_OVERLAPPEDWINDOW,
 		CW_USEDEFAULT, CW_USEDEFAULT,
-		500, 600,
+		900, 600,
 		NULL,
 		NULL,
 		hInstance,
