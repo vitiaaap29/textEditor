@@ -211,10 +211,11 @@ void ContentOfWindow::processorArrows(WPARAM wParam)
 			break;
 	}
 
-	if (caretPos.y > (int)indexesNewLines.size())
-	{
-		SetCaretPos(caretPos.x * charSize.x, indexesNewLines[caretPos.y].y );
-	}
+	//if (caretPos.y < (int)indexesNewLines.size())
+	//{
+		POINT pixelCaret = pixelByIndex(indexInTextByCaret(caretPos));
+		SetCaretPos(pixelCaret.x, pixelCaret.y );
+	/*}*/
 	ShowCaret(hWnd);
 }
 
@@ -659,8 +660,10 @@ POINT ContentOfWindow::pixelByIndex(int index)
 			{
 				if (result.x + images[indexImage]->GetWidth() < clientSize.x )
 				{
+					LPARAM pseudoLparam = MAKELPARAM(result.x, result.y);
 					result.x += images[indexImage]->GetWidth();
-					result.y += heigthLine(i - caretPos.x + 1) - charSize.y;
+					POINT caretStartImage = calculateCaretPosByCoordinates(pseudoLparam);
+					result.y += heigthLine(indexInTextByCaret(caretStartImage) - caretStartImage.x) - charSize.y;
 				}
 				else
 				{
