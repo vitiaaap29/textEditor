@@ -102,6 +102,7 @@ void ContentOfWindow::drawText()
 				POINT upperLeftCorner = {pixelPos.x, line.start + charSize.y - line.heigth};
 				drawImage(images[indexImage], upperLeftCorner);
 				pixelPos.x += images[indexImage]->GetWidth();
+				pixelPos.y += images[indexImage]->GetWidth();
 			}
 		}
 		SetBkColor(hDC,color);
@@ -113,7 +114,8 @@ void ContentOfWindow::drawText()
 	}
 	shiftCaretAfterDrawing = 0;
 
-	SetCaretPos(caretPos.x * charSize.x, caretPos.y * charSize.y);
+	POINT pixelCaret = pixelByIndex(indexInTextByCaret(caretPos));
+	SetCaretPos(pixelCaret.x, pixelCaret.y);
 	ShowCaret(hWnd);
 }
 
@@ -633,17 +635,10 @@ OPENFILENAME ContentOfWindow::initializeStructOpenFilename(wchar_t *filename)
 POINT ContentOfWindow::pixelByIndex(int index)
 {
 	POINT result = {0,0};
-	int oldY = -1;
 	int heigth = charSize.y;
 	int textSize = text.size();
 	for (int i = 0; i < textSize && i != index; i++)
 	{
-		if (oldY != result.y)
-		{
-			oldY = result.y;
-
-		}
-
 		if (text[i] != SYMBOL_SIGN_PICTURES)
 		{
 			if (text[i] != '\r' && clientSize.x - result.x >= charSize.x)
@@ -652,13 +647,27 @@ POINT ContentOfWindow::pixelByIndex(int index)
 			}
 			else
 			{
-				result.y++;
+				heigth = heigthLine(i);
+				result.y += heigth;
 				result.x = 0;
 			}
 		}
 		else
 		{
-			
+			int indexImage = text[++i] - '0';
+			if ( indexImage < (int)images.size() )
+			{
+				if (result.x + images[indexImage]->GetWidth() < clientSize.x )
+				{
+					result.x += images[indexImage]->GetWidth();
+					result.y += heigthLine(i - caretPos.x + 1) - charSize.y;
+				}
+				else
+				{
+					result.x = 0;
+					result.y += images[indexImage]->GetHeight();
+				}
+			}
 		}
 	}
 
@@ -692,13 +701,13 @@ POINT ContentOfWindow::printCharOnDC(int indexCharInText, POINT currentPos, Line
 	wchar_t ch = text.at(indexCharInText);
 	if (ch != '\r' && currentPos.x != lengthLine)
 	{
-		TextOut(hDC, currentPos.x * charSize.x, lineInfo.start, printedChar, 1);
+		TextOut(hDC, pixelPos.x, lineInfo.start, printedChar, 1);
 		currentPos.x++;
 		pixelPos.x += charSize.x;
 	}	
 	else if (currentPos.x == lengthLine)
 	{
-		TextOut(hDC, currentPos.x * charSize.x, lineInfo.start, printedChar, 1);
+		TextOut(hDC, pixelPos.x, lineInfo.start, printedChar, 1);
 		line.x = currentPos.x;
 		line.y = lineInfo.start;
 		indexesNewLines.push_back(line);
