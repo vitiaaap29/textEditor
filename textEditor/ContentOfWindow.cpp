@@ -1,8 +1,19 @@
 #include "ContentOfWindow.h"
 
-ContentOfWindow::CharInfo::CharInfo(HFONT* pfont)
+ContentOfWindow::CharInfo::CharInfo(wchar_t symbol, HFONT* pfont, POINT size)
 {
+	this->symbol = symbol;
 	this->pfont = pfont;
+	this->size  = size;
+	this->image = NULL;
+}
+
+void ContentOfWindow::CharInfo::SetImage(Gdiplus::Image* image)
+{
+	this->image = image;
+	this->symbol = SYMBOL_SIGN_PICTURES;
+	POINT imageSize = {image->GetWidth(), image->GetHeight()};
+	this->size = imageSize;
 }
 
 ContentOfWindow::ContentOfWindow(HWND hWnd)
@@ -16,12 +27,12 @@ ContentOfWindow::ContentOfWindow(HWND hWnd)
 	this->selectionFlag = false;
 	this->waitingActionOnSelected = false;
 	this->shiftCaretAfterDrawing = 0;
+	this->currentFont = (HFONT) GetStockObject(DEFAULT_GUI_FONT);
 	hDC = GetDC(hWnd);
-	SelectObject(hDC, GetStockObject(SYSTEM_FIXED_FONT));
+	//SelectObject(hDC, GetStockObject(SYSTEM_FIXED_FONT));
 	GetClientRect(hWnd, &clientRect);
 	Gdiplus::GdiplusStartupInput gdiplusStartupInput;
     Gdiplus::GdiplusStartup(&gdiplusToken, &gdiplusStartupInput, NULL);
-	// init fonts
 }
 
 ContentOfWindow::~ContentOfWindow(void)
@@ -50,7 +61,6 @@ void ContentOfWindow::drawText()
 	POINT currentPos;
 	currentPos.x = 0;
 	currentPos.y = 0;
-	int textSize = text._Mysize;
 
 	indexesNewLines.clear();
 	COLORREF color = GetBkColor(hDC);
@@ -343,33 +353,18 @@ void ContentOfWindow::workWithCaret(WORD message)
 }
 
 
-void ContentOfWindow::addCharToText(WORD wParam)
+void ContentOfWindow::addCharToText(WORD wParam, Gdiplus::Image* image)
 {
 	wchar_t addedSymbol = wParam;
-	int indexCharInText = indexInTextByCaret(caretPos);
-	CharInfo charInfo;
-	if ( text.size() == indexCharInText)
+	int indexCharInText = indexByCaret(caretPos);
+	CharInfo charInfo(addedSymbol,&currentFont, charSize);
+	if (image != NULL)
 	{
-		text.append(&addedSymbol,1);
-		CharInfo charInfo(&font);
-		chars.push_back(charInfo);
-	}
-	else
-	{ 
-		text.insert(indexCharInText,&addedSymbol,1);
-		CharInfo charInfo(&font);
-		chars.insert(chars.begin() + indexCharInText, charInfo);
+		charInfo.SetImage(image);
 	}
 
-	if (addedSymbol == '\r' || caretPos.x == lengthLine)
-	{
-		caretPos.y++;
-		caretPos.x = 0;
-	}
-	else if (caretPos.x < lengthLine)
-	{
-		caretPos.x++;
-	}
+	text.insert( text.begin() + indexCharInText, charInfo);
+	processorWkRight();
 }
 
 POINT ContentOfWindow::calculateCaretPosByCoordinates(LPARAM lParam)
@@ -439,11 +434,6 @@ void ContentOfWindow::calculateCharSize()
 	GetTextMetrics(hDC, &tm);
 	charSize.x = tm.tmAveCharWidth;
 	charSize.y = tm.tmHeight;
-}
-
-void ContentOfWindow::calculateLengthLine()
-{
-	lengthLine = clientSize.x / charSize.x;
 }
 
 POINT ContentOfWindow::caretByPixel(POINT pixel)
@@ -533,84 +523,69 @@ void ContentOfWindow::drawImage(Gdiplus::Image* pImage, POINT start)
 	graphics.DrawImage(pImage, imageRect);
 }
 
-int ContentOfWindow::heigthLine(int startIndex)
+vector<ContentOfWindow::LineInfo> ContentOfWindow::getLinesInfo()
 {
-	if (text[startIndex] == '\r')
+	vector<LineInfo> lines;
+	POINT pixelPos = {0, 0};
+	LineInfo line;
+	line.heigth = text.at(0).GetSize().y;
+	line.maxHeigthChar = line.heigth;
+	line.startInText = 0;
+	line.startY = 0;
+	for (int i = 0; text.size(); i++)
 	{
-		if (startIndex >= text.size() - 1)
+		bool endWindow = clientSize.x - pixelPos.x < text.at(i).GetSize().x;
+		if (text.at(i).GetSymbol() != '\r' && !endWindow) 
 		{
-			return charSize.y;
+			if (text.at(i).GetSize().y > line.heigth )
+			{
+				line.heigth = text.at(i).GetSize().y;
+			}
+			//возможно сей кусок не нужен, ибо по левому нижнему углу повелеваем буквой
+			if (text.at(i).GetSize().y > line.maxHeigthChar && text.at(i).GetImage == NULL)
+			{
+				line.maxHeigthChar = text.at(i).GetSize().y;
+			}
+			//до строчки сверху не нужен
+			pixelPos.x += text.at(i).GetSize().x;
 		}
 		else
 		{
-			startIndex++;
+			lines.push_back(line);
+			pixelPos.x = 0;
 		}
 	}
-	int result = charSize.y;
-	int foundSignImage = text.find(SYMBOL_SIGN_PICTURES, startIndex);
-	if (foundSignImage != wstring::npos)
+	return lines;
+}
+/*
+определяет индекс в тексет по положению каретки - пикселю
+*/
+int ContentOfWindow::indexByCaret(POINT caretPos)
+{
+	lines = getLinesInfo();
+	POINT pixelPos = {0, lines.at(0).maxHeigthChar};
+	int index = 0;
+	int textSize = text.size();
+	int indexline = 0;
+	for (; index < textSize || !isPixelBelongsChar(caretPos, pixelPos, text.at(index)); index++)
 	{
-		int foundNewline = text.find('\r', startIndex);
-		if ( (foundNewline != wstring::npos && foundNewline > foundSignImage) || (foundNewline == wstring::npos) )
+		bool endWindow = clientSize.x - pixelPos.x < text.at(index).GetSize().x;
+		if ( text.at(index).GetSymbol() != '\r' &&  !endWindow ) 
 		{
-			int yCurrentPos = 0;
-			int xInPixel = clientSize.x;
-			int maxHeigth = charSize.x;
-			int i = startIndex;
-			int size = (int)text.size();
-			bool signEndLine = xInPixel > charSize.x && (i < foundNewline || foundNewline == wstring::npos) && i < size;
-			for (; signEndLine; i++)
+			pixelPos.x += text.at(index).GetSize().x;
+		}
+		else 
+		{
+			indexline++;
+			pixelPos.y += lines.at(indexline).heigth;
+			if (endWindow)
 			{
-				if (text[i] != SYMBOL_SIGN_PICTURES)
-				{
-					xInPixel -= charSize.x;
-				}
-				else
-				{
-					int indexImage = text[++i] - '0'; 
-					if (indexImage < (int)images.size())
-					{
-						xInPixel -= images[indexImage]->GetWidth();
-						if (xInPixel > 0)
-						{
-							if (maxHeigth < images[indexImage]->GetHeight())
-							{
-								result = images[indexImage]->GetHeight();
-								maxHeigth = result;
-							}
-						}
-						else
-						{
-							result = maxHeigth;
-						}
-					}
-				}
-				signEndLine = xInPixel > charSize.x && (i < foundNewline || foundNewline == wstring::npos) && i < size;
+				pixelPos.x += text.at(index).GetSize().x;
 			}
 		}
 	}
-	return result;
-}
-
-int ContentOfWindow::indexInTextByCaret(POINT caretPos)
-{
-	POINT currentCaretPos;
-	currentCaretPos.x = 0;
-	currentCaretPos.y = 0;
-	int size = (int)text.size();
-	int index;
-	for (index = 0; index < size && (currentCaretPos.x != caretPos.x || currentCaretPos.y != caretPos.y); index++)
-	{
-		if (text[index] == '\r' || currentCaretPos.x == lengthLine)
-		{
-			currentCaretPos.x = 0;
-			currentCaretPos.y++;
-		}
-		else
-		{
-			currentCaretPos.x++;
-		}
-	}
+	// если всё это не заработает, то можно просто пройтись по lines
+	//ло нужной строки, а потом по буквам
 	return index;
 }
 
@@ -629,6 +604,23 @@ OPENFILENAME ContentOfWindow::initializeStructOpenFilename(wchar_t *filename)
 	ofn.lpstrInitialDir = NULL;
 	ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
 	return ofn;
+}
+
+/*
+Принадлежит ли пиксель букве, характеризуемой положением пикселя нижнего левого угла буквы.
+Если принадлежит, то пикселю присваивается левый нижний угол, для нормирования значения пикселя
+*/
+bool ContentOfWindow::isPixelBelongsChar(POINT& pixel, POINT pixelChar,CharInfo charInfo)
+{
+	bool result =  false;
+	bool includeOnY = pixel.y <= pixelChar.y && pixel.y > pixelChar.y - charInfo.GetSize().y;
+	bool includeOnX = pixel.x >= pixelChar.x && pixel.x < pixelChar.x + charInfo.GetSize().x;
+	if (includeOnX && includeOnY)
+	{
+		pixel = pixelChar;
+		result = true;
+	}
+	return result;
 }
 
 POINT ContentOfWindow::pixelByIndex(int index)
@@ -784,4 +776,14 @@ void ContentOfWindow::validateRectsForPaint()
 	lastLineRect.right = pixelEndCaret.x;
 	lastLineRect.bottom = lastLineRect.top + charSize.y;
 	ValidateRect(hWnd,&lastLineRect);
+}
+
+bool operator==(POINT a, POINT b)
+{
+	bool result = false;
+	if (a.x == a.y && b.x == b.y)
+	{
+		result = true;
+	}
+	return result;
 }

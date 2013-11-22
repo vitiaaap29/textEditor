@@ -9,22 +9,29 @@ using namespace std;
 
 class ContentOfWindow
 {
-	struct LineInfo
-	{
-		int heigth;
-		int start;
-	};
-
 	struct CharInfo
 	{
 	private:
 		HFONT* pfont;
-		POINT pixelPos;
+		//POINT pixelPos;
 		POINT size;
 		Gdiplus::Image* image;
+		wchar_t symbol;
 	public:
-		CharInfo(){};
-		CharInfo(HFONT* pfont);
+		CharInfo();
+		CharInfo(wchar_t symbol, HFONT* pfont, POINT size);
+		const wchar_t GetSymbol(){return symbol; }
+		const POINT GetSize(){return size;}
+		const Gdiplus::Image* GetImage(){return image;}
+		void SetImage(Gdiplus::Image* image);
+	};
+
+	struct LineInfo
+	{
+		int heigth;
+		int maxHeigthChar;
+		int startY;
+		int startInText;
 	};
 
 private:
@@ -35,35 +42,33 @@ private:
 	vector<POINT> indexesNewLines;
 	HWND hWnd;
 	HDC hDC;
-	wstring text;
-	vector<CharInfo> chars;
+	vector<LineInfo> lines;
+	vector<CharInfo> text;
 	POINT caretPos;
 	POINT clientSize;
 	POINT charSize;
 	POINT endTextPos;
 	POINT startForSelection;
-	POINT pixelPos;
 	int shiftCaretAfterDrawing;
 	RECT clientRect;
-	HFONT font;
+	HFONT currentFont;
 	vector<HFONT> fonts;
-	int lengthLine;
 	ULONG_PTR gdiplusToken;
 	vector<Gdiplus::Image*> images;
 
-	void addCharToText(WORD wParam);
+	void addCharToText(WORD wParam, Gdiplus::Image* image = NULL);
 	POINT calculateCaretPosByCoordinates(LPARAM lParam);
 	void calculateCharSize();
-	void calculateLengthLine();
 	void calculateEndTextPos();
 	POINT caretByPixel(POINT pixel);
 	bool caretIncludeSelectArea(POINT caretPos);
-	OPENFILENAME initializeStructOpenFilename(wchar_t *filename);
 	bool deleteSelectedText();
 	void drawImage(Gdiplus::Image* pImage, POINT start);
-	int heigthLine(int startIndex);
-	int indexInTextByCaret(POINT caretPos);
-	void initializeFonts(); //for you
+	vector<LineInfo> ContentOfWindow::getLinesInfo();
+	int indexByCaret(const POINT caretPos); //перписан, возможно потреуется доработка
+	OPENFILENAME initializeStructOpenFilename(wchar_t *filename);
+	void initializeFonts(); //для Макса
+	bool isPixelBelongsChar(POINT& pixel, POINT pixelChar,CharInfo charInfo); //новый метод
 	void openImage();
 	POINT pixelByIndex(int index);
 	POINT printCharOnDC(int indexCharInText, POINT currentPos, LineInfo lineInfo);
@@ -81,7 +86,7 @@ public:
 	bool processorMenuMessages(WORD id);
 	void processorWmChar(WORD wParam);
 	void setSizeAreaType(LPARAM param);
-	void setFont(HFONT font){this->font = font;}
+	void setFont(HFONT font){this->currentFont = font;}
 	void setStartForSelection(LPARAM lParam);
 	void leftMouseModePress(bool mode){this->leftMouseButtonPressed = mode;}
 	void workWithCaret(WORD message);
