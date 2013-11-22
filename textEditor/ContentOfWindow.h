@@ -56,6 +56,7 @@ private:
 	void calculateCharSize();
 	void calculateLengthLine();
 	void calculateEndTextPos();
+	POINT caretByPixel(POINT pixel);
 	bool caretIncludeSelectArea(POINT caretPos);
 	OPENFILENAME initializeStructOpenFilename(wchar_t *filename);
 	bool deleteSelectedText();
@@ -68,7 +69,6 @@ private:
 	POINT printCharOnDC(int indexCharInText, POINT currentPos, LineInfo lineInfo);
 	void processorVkLeft();
 	void processorWkRight();
-	POINT realLinesSize(POINT caret);
 	void validateRectsForPaint();
 public:
 	ContentOfWindow(HWND hWnd);
