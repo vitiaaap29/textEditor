@@ -47,7 +47,7 @@ private:
 	HDC hDC;
 	vector<LineInfo> lines;
 	vector<CharInfo> text;
-	POINT caretPos;
+	int caretIndex;
 	POINT clientSize;
 	POINT charSize;
 	POINT endTextPos;
