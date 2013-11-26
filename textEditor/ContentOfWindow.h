@@ -20,9 +20,9 @@ class ContentOfWindow
 	public:
 		CharInfo();
 		CharInfo(wchar_t symbol, HFONT* pfont, POINT size);
-		const wchar_t GetSymbol(){return symbol; }
+		wchar_t GetSymbol(){return symbol; }
 		const POINT GetSize(){return size;}
-		const Gdiplus::Image* GetImage(){return image;}
+		Gdiplus::Image* GetImage(){return image;}
 		void SetImage(Gdiplus::Image* image);
 	};
 
@@ -30,8 +30,12 @@ class ContentOfWindow
 	{
 		int heigth;
 		int maxHeigthChar;
-		int startY;
+		int upperLeftCorner;
+		int lengthByX;
 		int startInText;
+		int endInText;
+	public:
+		LineInfo();
 	};
 
 private:
@@ -39,7 +43,6 @@ private:
 	bool leftMouseButtonPressed;
 	bool selectionFlag;
 	bool waitingActionOnSelected;
-	vector<POINT> indexesNewLines;
 	HWND hWnd;
 	HDC hDC;
 	vector<LineInfo> lines;
@@ -57,21 +60,25 @@ private:
 	vector<Gdiplus::Image*> images;
 
 	void addCharToText(WORD wParam, Gdiplus::Image* image = NULL);
-	POINT calculateCaretPosByCoordinates(LPARAM lParam);
+	bool belongsPixelToLineByY(POINT pixel, LineInfo line);
+	bool belongsPixelToLineByX(POINT pixel, LineInfo line);
 	void calculateCharSize();
 	void calculateEndTextPos();
-	POINT caretByPixel(POINT pixel);
 	bool caretIncludeSelectArea(POINT caretPos);
 	bool deleteSelectedText();
-	void drawImage(Gdiplus::Image* pImage, POINT start);
-	vector<LineInfo> ContentOfWindow::getLinesInfo();
+	void drawImage(Gdiplus::Image* pImage, POINT start); //всё норм
+	void ContentOfWindow::getLinesInfo(); //новый метод
 	int indexByCaret(const POINT caretPos); //перписан, возможно потреуется доработка
-	OPENFILENAME initializeStructOpenFilename(wchar_t *filename);
+	OPENFILENAME initializeStructOpenFilename(wchar_t *filename); //и так всё норм
 	void initializeFonts(); //для Макса
-	bool isPixelBelongsChar(POINT& pixel, POINT pixelChar,CharInfo charInfo); //новый метод
-	void openImage();
-	POINT pixelByIndex(int index);
-	POINT printCharOnDC(int indexCharInText, POINT currentPos, LineInfo lineInfo);
+	bool isPixelBelongsChar(POINT pixel, POINT pixelChar,CharInfo charInfo); //новый метод
+	POINT lParamToPixel(LPARAM lParam); //переписано
+	int numberLineByIndex(int index);
+	POINT normedByUpperCorner(POINT pixel);
+	void openImage(); //переписано
+	POINT pixelLowerCornerByIndex(int index);
+	POINT pixelUpperCornerByIndex(int index);
+	POINT printCharOnDC(CharInfo symbol, POINT lowLeftAngle, int indexLine);
 	void processorVkLeft();
 	void processorWkRight();
 	void validateRectsForPaint();
@@ -79,6 +86,7 @@ public:
 	ContentOfWindow(HWND hWnd);
 	~ContentOfWindow(void);
 	void CaretPosByCoordinates(LPARAM lParam);
+
 	void drawText();
 	bool leftMouseIsPress(){return leftMouseButtonPressed;};
 	void mouseSelection(WPARAM wParam, LPARAM lParam);
