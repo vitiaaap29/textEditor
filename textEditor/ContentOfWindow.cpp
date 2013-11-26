@@ -324,6 +324,7 @@ void ContentOfWindow::addCharToText(WORD wParam, Gdiplus::Image* image)
 	}
 
 	text.insert( text.begin() + indexCharInText, *pCharInfo);
+	getLinesInfo();
 	processorWkRight();
 }
 
