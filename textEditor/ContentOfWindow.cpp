@@ -237,6 +237,7 @@ void ContentOfWindow::processorWmChar(WORD wParam)
 			{
 				caretIndex--;
 			}
+			getLinesInfo();
 		}
 		break;
 	case '\t':
@@ -373,7 +374,6 @@ bool ContentOfWindow::caretIncludeSelectArea(POINT position)
 {
 	bool result = false;
 	int startIndex = indexByCaret(startForSelection);
-	int caretIndex = caretIndex;
 	int index = indexByCaret(position);
 	int min = min(startIndex, caretIndex);
 	int max = max(startIndex, caretIndex);
@@ -478,36 +478,41 @@ void ContentOfWindow::getLinesInfo()
 */
 int ContentOfWindow::indexByCaret(POINT caretPos)
 {
-	int index = 0;
+	int index = -1;
 	if (!lines.empty())
 	{
-		POINT pixelPos = {0, lines.at(0).maxHeigthChar};
 		int textSize = text.size();
-		int indexline = 0;
-		if (textSize > 0)
+		int lineSize = (int) lines.size();
+		int indexLine = 0;
+		for(int indexLine = 0; indexLine < lineSize && index == -1; indexLine++)
 		{
-			for (; index < textSize && !isPixelBelongsChar(caretPos, pixelPos, text.at(index)); index++)
+			LineInfo line = lines.at(indexLine);
+			if ( belongsPixelToLineByY(caretPos, line))
 			{
-				bool endWindow = clientSize.x - pixelPos.x < text.at(index).GetSize().x;
-				if ( text.at(index).GetSymbol() != '\r' &&  !endWindow )
+				if ( belongsPixelToLineByX(caretPos, line))
 				{
-					pixelPos.x += text.at(index).GetSize().x;
-				}
-				else 
-				{
-					if (belongsPixelToLineByY(caretPos, lines.at(indexline)) )
+					int a = 0;
+					int b = a;
+					for (int i = line.startInText; i < line.endInText ;i++)
 					{
-						if (!belongsPixelToLineByX(caretPos, lines.at(indexline)))
+						b = a + text.at(i).GetSize().x;
+						if (caretPos.x >= a && caretPos.x < b )
 						{
-							index = lines.at(indexline).endInText;
+							index = i;
 							break;
 						}
+						a = b;
 					}
-					indexline++;
-					pixelPos.y += lines.at(indexline).heigth;
-					if (endWindow)
+				}
+				else
+				{
+					if (indexLine < lineSize - 1)
 					{
-						pixelPos.x = text.at(index).GetSize().x;
+						index = line.endInText;
+					}
+					else
+					{
+						index = text.size();
 					}
 				}
 			}
@@ -515,6 +520,10 @@ int ContentOfWindow::indexByCaret(POINT caretPos)
 	}
 	// если всё это не заработает, то можно просто пройтись по lines
 	//ло нужной строки, а потом по буквам
+	if (index == -1)
+	{
+		index = text.size();
+	}
 	return index;
 }
 
@@ -581,32 +590,39 @@ POINT ContentOfWindow::pixelLowerCornerByIndex(int index)
 	{
 		result.y = lines.at(0).heigth;
 		int textSize = text.size();
-		int indexLine = 0;
-		for (int i = 0; (i < textSize) && (i < index + 1); i++)
+		int lineSize = lines.size();
+		bool isDefine = false;
+		for (int i = 0; i < lineSize && !isDefine; i++)
 		{
-			bool endWindow = clientSize.x - result.x < text.at(i).GetSize().x;
-			if (text.at(i).GetSymbol() != '\r' && !endWindow)
+			LineInfo line = lines.at(i);
+			if (index >= line.startInText && index <= line.endInText + 1)
 			{
-				result.x += text.at(i).GetSize().x;
-			}
-			else
-			{
-				if (endWindow)
+				result.y = line.upperLeftCorner + line.heigth;
+				//просто меньше, ибо размер самой буквы с индексом index не надо добавлять
+				for (int j = line.startInText; j < index; j++)
 				{
-					result.x = text.at(i).GetSize().x;
+					if (j < textSize)
+					{
+						result.x += text.at(j).GetSize().x;
+					}
+					else
+					{
+						//or result.x = lines.at(lines.size() - 1).GetSize().x;
+						result.x += charSize.x;
+					}
 				}
-				else
+				isDefine = true;
+				if ( (index - 1) < text.size() && text.at(index - 1).GetSymbol() == '\r' )
 				{
 					result.x = 0;
-				}
-				indexLine++;
-				if (indexLine < lines.size())
-				{
-					result.y += lines.at(indexLine).heigth;
-				}
-				else
-				{
-					result.y += text.at(i).GetSize().y;
+					if (i + 1 < lineSize)
+					{
+						result.y += lines.at(i + 1).heigth;
+					}
+					else
+					{
+						result.y += charSize.y;
+					}
 				}
 			}
 		}

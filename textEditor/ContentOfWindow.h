@@ -48,6 +48,7 @@ private:
 	vector<LineInfo> lines;
 	vector<CharInfo> text;
 	int caretIndex;
+	//pair<int,bool> ;
 	POINT clientSize;
 	POINT charSize;
 	POINT endTextPos;
