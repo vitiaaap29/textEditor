@@ -217,6 +217,13 @@ bool ContentOfWindow::processorMenuMessages(WORD id)
 	case ID_SAVE_FILE:
 		//тут Лёшина функция будет вызываться
 		break;
+	case ID_FONT:
+		//тут вызов метода Макса
+		/*
+		метод будет готовить все нужные структуры, вызывать диалог выбора шрифтов
+		и ложить выбранный шрифт в currentFont; возможно надо сделать и изменение размера
+		*/
+		break;
 	default:
 		return false;
 	}
@@ -699,7 +706,9 @@ POINT ContentOfWindow::printCharOnDC(CharInfo symbol, POINT lowLeftAngle,  int i
 	LineInfo lineInfo = lines.at(indexLine);
 	wchar_t printedCh= symbol.GetSymbol();
 	LPCWSTR printedChar = static_cast<LPCWSTR>(&printedCh);
-	if (symbol.GetSymbol() != '\r')
+	bool endWindow = clientSize.x - (lowLeftAngle.x + symbol.GetSize().x) < symbol.GetSize().x;
+	// тут ещё не всё если много строк до упора, то херня получается
+	if (symbol.GetSymbol() != '\r' && !endWindow)
 	{
 		if (symbol.GetImage() == NULL)
 		{
