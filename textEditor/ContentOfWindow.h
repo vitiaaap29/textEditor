@@ -23,6 +23,7 @@ class ContentOfWindow
 		const POINT GetSize(){return size;}
 		Gdiplus::Image* GetImage(){return image;}
 		void SetImage(Gdiplus::Image* image);
+		void SetSizeX(int x){size.x = x;}
 	};
 
 	struct LineInfo

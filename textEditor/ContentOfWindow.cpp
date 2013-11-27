@@ -323,7 +323,12 @@ void ContentOfWindow::addCharToText(WORD wParam, Gdiplus::Image* image)
 	{
 		pCharInfo->SetImage(image);
 	}
-
+	ABC abc;
+	int iAbc;
+	bool iii = GetCharABCWidths(hDC, addedSymbol,addedSymbol, &abc);
+	bool ii = GetCharWidth32W(hDC, addedSymbol, addedSymbol, &iAbc);
+	int charWidth = iAbc;
+	pCharInfo->SetSizeX(charWidth);
 	text.insert( text.begin() + indexCharInText, *pCharInfo);
 	getLinesInfo();
 	processorWkRight();
@@ -361,11 +366,8 @@ void ContentOfWindow::calculateCharSize()
 {
 	TEXTMETRIC tm;
 	GetTextMetrics(hDC, &tm);
-	charSize.x = 8;//tm.tmAveCharWidth;
-	charSize.y = tm.tmHeight;
-	TCHAR ch = L'щ';
-	ABC abc;
-	GetCharABCWidths(hDC,ch,ch, &abc);
+	charSize.x = tm.tmAveCharWidth;
+	charSize.y = tm.tmHeight + tm.tmExternalLeading;
 }
 
 void ContentOfWindow::calculateEndTextPos()
@@ -444,7 +446,7 @@ void ContentOfWindow::getLinesInfo()
 				//до строчки сверху не нужен
 				pixelPos.x += text.at(i).GetSize().x;
 			}
-			else
+			else if (!endWindow)
 			{
 				line.endInText = i;
 				line.lengthByX = pixelPos.x;
@@ -458,6 +460,26 @@ void ContentOfWindow::getLinesInfo()
 					line.heigth = text.at(line.startInText).GetSize().y;
 					line.maxHeigthChar = 0;
 				}
+			}
+			else
+			{
+				line.endInText = i;
+				line.lengthByX = pixelPos.x;
+				lines.push_back(line);
+				pixelPos.x = 0;
+
+				line.startInText = i + 1;
+				line.upperLeftCorner += line.heigth;
+				line.lengthByX = 0;
+				if ( i + 1 < text.size())
+				{
+					line.heigth = text.at(line.startInText).GetSize().y;
+				}
+				else
+				{
+					line.heigth = charSize.y;
+				}
+				line.maxHeigthChar = 0;
 			}
 		}
 		
