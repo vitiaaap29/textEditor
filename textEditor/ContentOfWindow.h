@@ -13,7 +13,6 @@ class ContentOfWindow
 	{
 	private:
 		HFONT* pfont;
-		//POINT pixelPos;
 		POINT size;
 		Gdiplus::Image* image;
 		wchar_t symbol;

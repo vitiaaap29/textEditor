@@ -361,8 +361,11 @@ void ContentOfWindow::calculateCharSize()
 {
 	TEXTMETRIC tm;
 	GetTextMetrics(hDC, &tm);
-	charSize.x = tm.tmAveCharWidth;
+	charSize.x = 8;//tm.tmAveCharWidth;
 	charSize.y = tm.tmHeight;
+	TCHAR ch = L'ù';
+	ABC abc;
+	GetCharABCWidths(hDC,ch,ch, &abc);
 }
 
 void ContentOfWindow::calculateEndTextPos()
