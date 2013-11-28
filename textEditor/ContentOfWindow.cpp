@@ -22,6 +22,14 @@ void ContentOfWindow::CharInfo::SetImage(Gdiplus::Image* image)
 	this->size = imageSize;
 }
 
+ContentOfWindow::SaverText::SaverText(int countSymbols, int countImages, vector<Gdiplus::Image> *images, vector<CharInfo> text)
+{
+	this->countSymbols = countSymbols;
+	this->countImages = countImages;
+	this->images = images;
+	this->text = text;
+}
+
 ContentOfWindow::LineInfo::LineInfo()
 {
 	this->heigth = 0;
@@ -42,6 +50,7 @@ ContentOfWindow::ContentOfWindow(HWND hWnd)
 	this->waitingActionOnSelected = false;
 	this->shiftCaretAfterDrawing = 0;
 	this->currentFont = (HFONT) GetStockObject(DEFAULT_GUI_FONT);
+	this->lastImageIndex = 0;
 	hDC = GetDC(hWnd);
 	//SelectObject(hDC, GetStockObject(SYSTEM_FIXED_FONT));
 	GetClientRect(hWnd, &clientRect);
@@ -75,10 +84,11 @@ void ContentOfWindow::drawText()
 		validateRectsForPaint();
 	
 		POINT lowLeftAngle = {0, lines.at(0).heigth};
-	
+		int oldLowLeftAngleY = lowLeftAngle.y;
 		COLORREF color = GetBkColor(hDC);
 		COLORREF highlightColor = RGB(0, 255, 255);
 	
+		int indexLine = 0;
 		for (int i = 0; i < textSize; i++)
 		{
 			CharInfo symbol = text.at(i);
@@ -93,7 +103,11 @@ void ContentOfWindow::drawText()
 				waitingActionOnSelected = false;
 			}
 		
-			int indexLine = numberLineByIndex(i);
+			if (oldLowLeftAngleY != lowLeftAngle.y)
+			{
+				indexLine++;
+			}
+			oldLowLeftAngleY = lowLeftAngle.y;
 			lowLeftAngle = printCharOnDC(symbol, lowLeftAngle, indexLine);
 		
 			SetBkColor(hDC,color);
@@ -133,7 +147,6 @@ void ContentOfWindow::mouseSelection(WPARAM wParam, LPARAM lParam)
 void ContentOfWindow::processorArrows(WPARAM wParam) 
 {
 	HideCaret(hWnd);
-	calculateEndTextPos();
 	switch (wParam)
 	{
 		case VK_LEFT:
@@ -267,13 +280,13 @@ void ContentOfWindow::processorWmChar(WORD wParam)
 	InvalidateRect(hWnd,NULL, false);
 }
 
-void ContentOfWindow::setSizeAreaType(LPARAM param)
-{
-	clientSize.x = LOWORD(param);
-	clientSize.y = HIWORD(param);
-	GetClientRect(hWnd, &clientRect);
-	getLinesInfo();
-}
+//void ContentOfWindow::setSizeAreaType(LPARAM param)
+//{
+//	clientSize.x = LOWORD(param);
+//	clientSize.y = HIWORD(param);
+//	GetClientRect(hWnd, &clientRect);
+//	getLinesInfo();
+//}
 
 void ContentOfWindow::setStartForSelection(LPARAM lParam)
 {
@@ -326,16 +339,26 @@ void ContentOfWindow::addCharToText(WORD wParam, Gdiplus::Image* image)
 		POINT size = {0, charSize.y};
 		pCharInfo = new CharInfo(addedSymbol,&currentFont, size);
 	}
-	if (image != NULL)
+	if (image == NULL)
 	{
+		ABC abc;
+		int charWidth;
+		int iAbc;
+		if (GetCharABCWidths(hDC, addedSymbol,addedSymbol, &abc) )
+		{
+			charWidth = abc.abcA + abc.abcB + abc.abcC;
+		}
+		else if (GetCharWidth32W(hDC, addedSymbol, addedSymbol, &iAbc))
+		{
+			charWidth = iAbc;
+		}
+		pCharInfo->SetSizeX(charWidth);
+	}
+	else
+	{
+		pCharInfo->SetImageNumber = images.size() - 1;
 		pCharInfo->SetImage(image);
 	}
-	ABC abc;
-	int iAbc;
-	bool iii = GetCharABCWidths(hDC, addedSymbol,addedSymbol, &abc);
-	bool ii = GetCharWidth32W(hDC, addedSymbol, addedSymbol, &iAbc);
-	int charWidth = iAbc;
-	pCharInfo->SetSizeX(charWidth);
 	text.insert( text.begin() + indexCharInText, *pCharInfo);
 	getLinesInfo();
 	processorWkRight();
@@ -438,7 +461,11 @@ void ContentOfWindow::getLinesInfo()
 		line.heigth = text.at(line.startInText).GetSize().y;
 		for (int i = 0; i < (int)text.size(); i++)
 		{
-			bool endWindow = clientSize.x - pixelPos.x < text.at(i).GetSize().x;
+			bool endWindow = false;
+			if (i + 1 < (int)text.size())
+			{
+				endWindow = clientSize.x - pixelPos.x - text.at(i).GetSize().x < text.at(i+1).GetSize().x;
+			}
 			if (text.at(i).GetSymbol() != '\r' && !endWindow) 
 			{
 				if (text.at(i).GetSize().y > line.heigth )
@@ -466,11 +493,12 @@ void ContentOfWindow::getLinesInfo()
 					line.lengthByX = 0;
 					line.heigth = text.at(line.startInText).GetSize().y;
 					line.maxHeigthChar = 0;
-				}
+				} 
 			}
 			else
 			{
 				line.endInText = i;
+				pixelPos.x += text.at(i).GetSize().x;
 				line.lengthByX = pixelPos.x;
 				lines.push_back(line);
 				pixelPos.x = 0;
@@ -594,11 +622,21 @@ bool ContentOfWindow::isPixelBelongsChar(POINT pixel, POINT pixelChar,CharInfo c
 int ContentOfWindow::numberLineByIndex(int index)
 {
 	int result = 0;
-	int currentStartLine = lines.at(0).startInText;
-	for (int i = 0; i < (int)lines.size() && currentStartLine < index; i++)
+	LineInfo line = lines.at(result);
+	for(;result < lines.size(); result++)
 	{
-		result = currentStartLine;
-		currentStartLine = lines.at(0).startInText;
+		if (index >= line.startInText && index <= line.endInText)
+		{
+			if (result + 1 < lines.size())
+			{
+				line = lines.at(result + 1);
+				if (index == line.startInText)
+				{
+					result++;
+				}
+			}
+			break;
+		}
 	}
 	return result;
 }
@@ -706,10 +744,22 @@ POINT ContentOfWindow::printCharOnDC(CharInfo symbol, POINT lowLeftAngle,  int i
 	LineInfo lineInfo = lines.at(indexLine);
 	wchar_t printedCh= symbol.GetSymbol();
 	LPCWSTR printedChar = static_cast<LPCWSTR>(&printedCh);
-	bool endWindow = clientSize.x - (lowLeftAngle.x + symbol.GetSize().x) < symbol.GetSize().x;
-	// тут ещё не всё если много строк до упора, то херня получается
-	if (symbol.GetSymbol() != '\r' && !endWindow)
+	if (symbol.GetSymbol() != '\r')
 	{
+		if (lowLeftAngle.x == lineInfo.lengthByX)
+		{
+			indexLine++;
+			lowLeftAngle.x = 0;
+			if (indexLine < lines.size())
+			{
+				lineInfo = lines.at(indexLine);
+				lowLeftAngle.y += lineInfo.heigth;
+			}
+			else
+			{
+				lowLeftAngle.y += lineInfo.maxHeigthChar;
+			}
+		}
 		if (symbol.GetImage() == NULL)
 		{
 			TextOut(hDC, lowLeftAngle.x, lowLeftAngle.y - lineInfo.maxHeigthChar, printedChar, 1);
@@ -754,6 +804,28 @@ void ContentOfWindow::processorWkRight()
 	}
 }
 
+void ContentOfWindow::save()
+{
+	wchar_t filename[256] = {0};
+	OPENFILENAME ofn = initializeStructOpenFilename(filename);
+	if(GetSaveFileName(&ofn))
+    {
+		SaverText saver;
+		saver.countImages = images.size();
+		saver.countSymbols = text.size();
+		saver.text = text;
+		saver.images = images;
+		FILE *f = _wfopen(filename,L"wb");
+		if (f != NULL)
+		{
+			fwrite(&(saver.countImages),sizeof(int),1,f);
+			fwrite(&(saver.countSymbols), sizeof(int), 1, f);
+		}
+
+		fclose(f);
+    }
+}
+
 void ContentOfWindow::validateRectsForPaint()
 {
 	LineInfo lastLine = lines.at(lines.size() - 1);
@@ -763,7 +835,6 @@ void ContentOfWindow::validateRectsForPaint()
 	rect.right = clientSize.x;
 	rect.bottom = lastLine.upperLeftCorner; 
 	ValidateRect(hWnd, &rect);
-	calculateEndTextPos();
 	RECT lastLineRect;
 	lastLineRect.left = 0;
 	lastLineRect.top = lastLine.upperLeftCorner;

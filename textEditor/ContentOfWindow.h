@@ -13,8 +13,10 @@ class ContentOfWindow
 	{
 	private:
 		HFONT* pfont;
+		int numberFont;
 		POINT size;
 		Gdiplus::Image* image;
+		int numberImage;
 		wchar_t symbol;
 	public:
 		CharInfo();
@@ -22,8 +24,13 @@ class ContentOfWindow
 		wchar_t GetSymbol(){return symbol; }
 		const POINT GetSize(){return size;}
 		Gdiplus::Image* GetImage(){return image;}
+		int GetNumberImage(){return numberImage;}
+		int GetNumberFont(){return numberFont;}
 		void SetImage(Gdiplus::Image* image);
 		void SetSizeX(int x){size.x = x;}
+		void SetImageNumber(int imageNumber){numberImage = imageNumber;}
+		void SetNumberFont(int number){numberFont = number;}
+
 	};
 
 	struct LineInfo
@@ -36,6 +43,17 @@ class ContentOfWindow
 		int endInText;
 	public:
 		LineInfo();
+	};
+
+	struct SaverText
+	{
+		int countSymbols;
+		int countImages;
+		vector<int> sizesImages;
+		vector<Gdiplus::Image*> images; //размер картинки и сама картинка
+		vector<CharInfo> text;
+	public:
+		//SaverText(int countSymbols, int countImages, vector<Gdiplus::Image> *images, vector<CharInfo> text);
 	};
 
 private:
@@ -82,6 +100,7 @@ private:
 	POINT printCharOnDC(CharInfo symbol, POINT lowLeftAngle, int indexLine);
 	void processorVkLeft();
 	void processorWkRight();
+	void save();
 	void validateRectsForPaint();
 public:
 	ContentOfWindow(HWND hWnd);
