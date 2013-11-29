@@ -6,29 +6,51 @@
 На правило Лебедева ложится, ибо есть правило Сурокова: "Используйте столько слов, сколько требуется
 для полного понимания сути"*/
 
-ContentOfWindow::CharInfo::CharInfo(wchar_t symbol, HFONT* pfont, POINT size)
+ContentOfWindow::CharInfo::CharInfo(wchar_t symbol, HFONT font, POINT size)
 {
 	this->symbol = symbol;
-	this->pfont = pfont;
+	this->font = font;
 	this->size  = size;
 	this->image = NULL;
 }
 
-void ContentOfWindow::CharInfo::SetImage(Gdiplus::Image* image)
+void ContentOfWindow::CharInfo::SetImage(Gdiplus::Image* image, int numberImage)
 {
 	this->image = image;
 	this->symbol = SYMBOL_SIGN_PICTURES;
 	POINT imageSize = {image->GetWidth(), image->GetHeight()};
 	this->size = imageSize;
+	this->numberImage = numberImage;
 }
 
-ContentOfWindow::SaverText::SaverText(int countSymbols, int countImages, vector<Gdiplus::Image> *images, vector<CharInfo> text)
+bool ContentOfWindow::CharInfo::operator==(CharInfo chInfo)
 {
-	this->countSymbols = countSymbols;
-	this->countImages = countImages;
-	this->images = images;
-	this->text = text;
+	bool result = false;
+	if (this->GetSymbol() == chInfo.GetSymbol() && this->GetSymbol() == chInfo.GetSymbol())
+	{
+		result = true;
+	}
+	return result;
 }
+
+bool ContentOfWindow::CharInfo::operator<(CharInfo chInfo)
+{
+	bool result = false;
+	int difference = this->GetSymbol() -chInfo.GetSymbol();
+	if ( difference < 0)
+	{
+		result = true;
+	}
+	return result;
+}
+
+//ContentOfWindow::SaverText::SaverText(int countSymbols, int countImages, vector<Gdiplus::Image*> images, vector<CharInfo> text)
+//{
+//	this->countSymbols = countSymbols;
+//	this->countImages = countImages;
+//	this->images = images;
+//	this->text = text;
+//}
 
 ContentOfWindow::LineInfo::LineInfo()
 {
@@ -50,7 +72,6 @@ ContentOfWindow::ContentOfWindow(HWND hWnd)
 	this->waitingActionOnSelected = false;
 	this->shiftCaretAfterDrawing = 0;
 	this->currentFont = (HFONT) GetStockObject(DEFAULT_GUI_FONT);
-	this->lastImageIndex = 0;
 	hDC = GetDC(hWnd);
 	//SelectObject(hDC, GetStockObject(SYSTEM_FIXED_FONT));
 	GetClientRect(hWnd, &clientRect);
@@ -189,7 +210,7 @@ bool ContentOfWindow::processorMenuMessages(WORD id)
 			{
 				if (fromClipboard.at(i) != '\n')
 				{
-					CharInfo pastedChar(fromClipboard.at(i),&currentFont,charSize);
+					CharInfo pastedChar(fromClipboard.at(i), currentFont,charSize);
 					text.insert(text.begin() + pastedIndex,pastedChar);
 				}
 			}
@@ -228,7 +249,10 @@ bool ContentOfWindow::processorMenuMessages(WORD id)
 		openImage();
 		break;
 	case ID_SAVE_FILE:
-		//тут Лёшина функция будет вызываться
+		save();
+		break;
+	case ID_OPEN_FILE:
+		open();
 		break;
 	case ID_FONT:
 		//тут вызов метода Макса
@@ -280,13 +304,26 @@ void ContentOfWindow::processorWmChar(WORD wParam)
 	InvalidateRect(hWnd,NULL, false);
 }
 
-//void ContentOfWindow::setSizeAreaType(LPARAM param)
-//{
-//	clientSize.x = LOWORD(param);
-//	clientSize.y = HIWORD(param);
-//	GetClientRect(hWnd, &clientRect);
-//	getLinesInfo();
-//}
+void ContentOfWindow::recoveryImagesAddress()
+{
+	int textSize = text.size();
+	for (int i = 0; i < textSize; i++)
+	{
+		if (text.at(i).GetSymbol() == SYMBOL_SIGN_PICTURES)
+		{
+			int indexImage = text.at(i).numberImage;
+			text.at(i).SetImage(images.at(indexImage), indexImage);
+		}
+	}
+}
+
+void ContentOfWindow::setSizeAreaType(LPARAM param)
+{
+	clientSize.x = LOWORD(param);
+	clientSize.y = HIWORD(param);
+	GetClientRect(hWnd, &clientRect);
+	getLinesInfo();
+}
 
 void ContentOfWindow::setStartForSelection(LPARAM lParam)
 {
@@ -332,12 +369,12 @@ void ContentOfWindow::addCharToText(WORD wParam, Gdiplus::Image* image)
 	int indexCharInText = caretIndex;
 	if (addedSymbol != '\r')
 	{
-		pCharInfo = new CharInfo(addedSymbol,&currentFont, charSize);
+		pCharInfo = new CharInfo(addedSymbol, currentFont, charSize);
 	}
 	else
 	{
 		POINT size = {0, charSize.y};
-		pCharInfo = new CharInfo(addedSymbol,&currentFont, size);
+		pCharInfo = new CharInfo(addedSymbol, currentFont, size);
 	}
 	if (image == NULL)
 	{
@@ -356,8 +393,8 @@ void ContentOfWindow::addCharToText(WORD wParam, Gdiplus::Image* image)
 	}
 	else
 	{
-		pCharInfo->SetImageNumber = images.size() - 1;
-		pCharInfo->SetImage(image);
+		pCharInfo->SetImageNumber(images.size() - 1);
+		pCharInfo->SetImage(image, images.size() - 1);
 	}
 	text.insert( text.begin() + indexCharInText, *pCharInfo);
 	getLinesInfo();
@@ -419,6 +456,44 @@ bool ContentOfWindow::caretIncludeSelectArea(POINT position)
 	return result;
 }
 
+void ContentOfWindow::changeFontText(int pos1,int pos2, HFONT font)
+{
+	for (int i = pos1; i< pos2; i++)
+	{
+		text[i].font = font;
+	}
+}
+
+int ContentOfWindow::ChangeFont()
+{
+	CHOOSEFONT cf;            // common dialog box structure
+	static LOGFONT lf;        // logical font structure
+	static DWORD rgbCurrent;  // current text color
+	HFONT hfont, hfontPrev;
+	DWORD rgbPrev;
+	// Initialize CHOOSEFONT
+	ZeroMemory(&cf, sizeof(cf));
+	ZeroMemory(&lf, sizeof(lf));
+	cf.lStructSize = sizeof (cf);
+	cf.hwndOwner = hWnd;
+	cf.lpLogFont = &lf;
+	cf.rgbColors = rgbCurrent;
+	cf.Flags = CF_SCREENFONTS | CF_EFFECTS;
+	if (ChooseFont(&cf)==TRUE)
+	{
+		hfont = CreateFontIndirect(cf.lpLogFont);
+		currentFont = hfont;
+	}
+
+	int startIndex = indexByCaret(startForSelection);
+	if (startIndex != caretIndex)
+	{
+		changeFontText(min(startIndex,caretIndex), max(startIndex,caretIndex),currentFont);
+	}
+	InvalidateRect(hWnd, NULL, TRUE);
+	return 1;
+}
+
 bool ContentOfWindow::deleteSelectedText()
 {
 	bool result = false;
@@ -449,6 +524,15 @@ void ContentOfWindow::drawImage(Gdiplus::Image* pImage, POINT start)
 	ValidateRect(hWnd, &rect);
 	Gdiplus::Graphics graphics(hWnd);
 	graphics.DrawImage(pImage, imageRect);
+}
+
+long ContentOfWindow::fileSize(FILE* f)
+{
+	long currentPos = ftell(f);
+	fseek(f, 0, SEEK_END);
+	int result = ftell(f);
+	fseek(f, currentPos,SEEK_SET);
+	return result;
 }
 
 void ContentOfWindow::getLinesInfo()
@@ -506,7 +590,7 @@ void ContentOfWindow::getLinesInfo()
 				line.startInText = i + 1;
 				line.upperLeftCorner += line.heigth;
 				line.lengthByX = 0;
-				if ( i + 1 < text.size())
+				if ( i + 1 < (int)text.size())
 				{
 					line.heigth = text.at(line.startInText).GetSize().y;
 				}
@@ -587,7 +671,7 @@ int ContentOfWindow::indexByCaret(POINT caretPos)
 	return index;
 }
 
-OPENFILENAME ContentOfWindow::initializeStructOpenFilename(wchar_t *filename)
+OPENFILENAME ContentOfWindow::initializeStructOpenFilename(wchar_t *filename, wchar_t* filter)
 {
 	OPENFILENAME ofn;
 	ZeroMemory(&ofn, sizeof(ofn));
@@ -595,7 +679,7 @@ OPENFILENAME ContentOfWindow::initializeStructOpenFilename(wchar_t *filename)
 	ofn.hwndOwner = hWnd;
 	ofn.lpstrFile = filename;
 	ofn.nMaxFile = sizeof(*filename) * 256;
-	ofn.lpstrFilter = L"Image\0*.bmp;*.jpg\0";
+	ofn.lpstrFilter = filter;L"Image\0*.bmp;*.jpg\0";
 	ofn.nFilterIndex = 1;
 	ofn.lpstrFileTitle = NULL;
 	ofn.nMaxFileTitle = 0;
@@ -723,10 +807,21 @@ POINT ContentOfWindow::pixelUpperCornerByIndex(int index)
 	return result;
 }
 
+void ContentOfWindow::open()
+{
+	wchar_t filename[256] = {0};
+	OPENFILENAME ofn = initializeStructOpenFilename(filename, L"0*.linux\0\0");
+	if(GetOpenFileName(&ofn))
+    {
+		setContentFromFile(filename);
+		InvalidateRect(hWnd, NULL, true);
+    }
+}
+
 void ContentOfWindow::openImage()
 {
 	wchar_t filename[256] = {0};
-	OPENFILENAME ofn = initializeStructOpenFilename(filename);
+	OPENFILENAME ofn = initializeStructOpenFilename(filename, L"Image\0*.bmp;*.jpg\0\0");
 	if(GetOpenFileName(&ofn))
     {
 		Gdiplus::Image* image = Gdiplus::Image::FromFile((WCHAR*)filename);
@@ -807,23 +902,105 @@ void ContentOfWindow::processorWkRight()
 void ContentOfWindow::save()
 {
 	wchar_t filename[256] = {0};
-	OPENFILENAME ofn = initializeStructOpenFilename(filename);
+	OPENFILENAME ofn = initializeStructOpenFilename(filename, L"Content\0*.linux\0\0");
 	if(GetSaveFileName(&ofn))
     {
 		SaverText saver;
 		saver.countImages = images.size();
 		saver.countSymbols = text.size();
-		saver.text = text;
-		saver.images = images;
+		saver.sizeInBytes = 0;
 		FILE *f = _wfopen(filename,L"wb");
 		if (f != NULL)
 		{
+			wchar_t sign = SYMBOL_SIGN_PICTURES;
+			fwrite(&sign, sizeof(sign), 1, f);
+			fwrite(&saver.sizeInBytes, sizeof(saver.sizeInBytes), 1, f);
 			fwrite(&(saver.countImages),sizeof(int),1,f);
 			fwrite(&(saver.countSymbols), sizeof(int), 1, f);
+			
+			for (int i = 0; i < saver.countSymbols; i++)
+			{
+				fwrite(&text.at(i), sizeof(CharInfo), 1, f);
+			}
+
+			for (int i = 0; i < images.size(); i++)
+			{
+				POINT imageSize = {images.at(i)->GetWidth(), images.at(i)->GetHeight()};
+				Gdiplus::Bitmap* bitmap = new Gdiplus::Bitmap(imageSize.x, imageSize.y,PixelFormat32bppRGB);
+				Graphics graphic(bitmap);
+				//draw image on bitmap
+				graphic.DrawImage(images.at(i),0,0,imageSize.x, imageSize.y);
+
+				BitmapData bmpData;
+				Gdiplus::Rect rect(0, 0, bitmap->GetWidth(), bitmap->GetHeight());
+				bitmap->LockBits(&rect,
+					Gdiplus::ImageLockModeRead | Gdiplus::ImageLockModeWrite,
+					bitmap->GetPixelFormat(), &bmpData);
+				int currentImageSize = bmpData.Height * abs(bmpData.Stride);
+
+				//write size in bytes current image
+				fwrite(&currentImageSize,sizeof(currentImageSize),1 ,f);
+				//write width and heigth
+				POINT bitmapSize = {bitmap->GetWidth(), bitmap->GetHeight()};
+				fwrite(&bitmapSize, sizeof(imageSize), 1, f);
+
+				byte* bufferImage = new byte[currentImageSize];
+				//self bitmap to file
+				fwrite(bmpData.Scan0, currentImageSize, 1, f);
+				bitmap->UnlockBits(&bmpData);
+				delete[] bufferImage;
+			}
+			saver.sizeInBytes = ftell(f);
+			fseek(f, sizeof(sign),SEEK_SET);
+			fwrite(&(saver.sizeInBytes),sizeof(saver.sizeInBytes), 1, f);
 		}
 
 		fclose(f);
     }
+}
+
+void ContentOfWindow::setContentFromFile(wchar_t* filename)
+{
+	SaverText opener;
+	FILE *f = _wfopen(filename,L"r+b");
+	if (f != NULL)
+	{
+		wchar_t sign;
+		fread(&sign, sizeof(sign), 1, f);
+		fread(&opener.sizeInBytes, sizeof(opener.sizeInBytes), 1, f);
+		int realSize = fileSize(f);
+		if (sign == SYMBOL_SIGN_PICTURES && realSize == opener.sizeInBytes)
+		{
+			images.clear();
+			fread(&(opener.countImages),sizeof(int),1,f);
+			fread(&(opener.countSymbols), sizeof(int), 1, f);
+			text.clear();
+			for (int i = 0; i < opener.countSymbols; i++)
+			{
+				CharInfo chInfo;
+				fread(&chInfo, sizeof(chInfo), 1, f);
+				text.push_back(chInfo);
+			}
+			caretIndex = 0;
+			
+			for (int i = 0; i < opener.countImages; i++)
+			{
+				int sizeImage;
+				fread(&sizeImage, sizeof(sizeImage), 1, f);
+				POINT size;
+				fread(&size, sizeof(size), 1, f);
+				byte *bytesImage = new byte[sizeImage];
+				fread(bytesImage, sizeImage, 1, f);
+
+				int stride = 4 * size.x;
+				Bitmap *bitmap = new Bitmap(size.x, size.y, stride, PixelFormat32bppRGB, bytesImage);
+				images.push_back(bitmap);
+			}
+
+			recoveryImagesAddress();
+			getLinesInfo();
+		}
+	}
 }
 
 void ContentOfWindow::validateRectsForPaint()

@@ -6,31 +6,33 @@
 #include <vector>
 
 using namespace std;
+using namespace Gdiplus;
 
 class ContentOfWindow
 {
 	struct CharInfo
 	{
 	private:
-		HFONT* pfont;
 		int numberFont;
 		POINT size;
 		Gdiplus::Image* image;
-		int numberImage;
 		wchar_t symbol;
 	public:
-		CharInfo();
-		CharInfo(wchar_t symbol, HFONT* pfont, POINT size);
+		int numberImage;
+		HFONT font;
+		CharInfo(){}
+		CharInfo(wchar_t symbol, HFONT font, POINT size);
 		wchar_t GetSymbol(){return symbol; }
 		const POINT GetSize(){return size;}
 		Gdiplus::Image* GetImage(){return image;}
 		int GetNumberImage(){return numberImage;}
 		int GetNumberFont(){return numberFont;}
-		void SetImage(Gdiplus::Image* image);
+		void SetImage(Gdiplus::Image* image, int numberImage);
 		void SetSizeX(int x){size.x = x;}
 		void SetImageNumber(int imageNumber){numberImage = imageNumber;}
 		void SetNumberFont(int number){numberFont = number;}
-
+		bool operator==(CharInfo chInfo);
+		bool operator<(CharInfo chInfo);
 	};
 
 	struct LineInfo
@@ -49,9 +51,7 @@ class ContentOfWindow
 	{
 		int countSymbols;
 		int countImages;
-		vector<int> sizesImages;
-		vector<Gdiplus::Image*> images; //размер картинки и сама картинка
-		vector<CharInfo> text;
+		int sizeInBytes;
 	public:
 		//SaverText(int countSymbols, int countImages, vector<Gdiplus::Image> *images, vector<CharInfo> text);
 	};
@@ -66,7 +66,6 @@ private:
 	vector<LineInfo> lines;
 	vector<CharInfo> text;
 	int caretIndex;
-	//pair<int,bool> ;
 	POINT clientSize;
 	POINT charSize;
 	POINT endTextPos;
@@ -84,29 +83,34 @@ private:
 	void calculateCharSize();
 	void calculateEndTextPos();
 	bool caretIncludeSelectArea(POINT caretPos);
+	void changeFontText(int pos1,int pos2, HFONT font);
 	bool deleteSelectedText();
 	void drawImage(Gdiplus::Image* pImage, POINT start); //всё норм
-	void ContentOfWindow::getLinesInfo(); //новый метод
+	long fileSize(FILE* f);
+	void getLinesInfo(); //новый метод
 	int indexByCaret(const POINT caretPos); //перписан, возможно потреуется доработка
-	OPENFILENAME initializeStructOpenFilename(wchar_t *filename); //и так всё норм
+	OPENFILENAME initializeStructOpenFilename(wchar_t *filename, wchar_t* filter); //и так всё норм
 	void initializeFonts(); //для Макса
 	bool isPixelBelongsChar(POINT pixel, POINT pixelChar,CharInfo charInfo); //новый метод
 	POINT lParamToPixel(LPARAM lParam); //переписано
 	int numberLineByIndex(int index);
 	POINT normedByUpperCorner(POINT pixel);
+	void open();
 	void openImage(); //переписано
 	POINT pixelLowerCornerByIndex(int index);
 	POINT pixelUpperCornerByIndex(int index);
 	POINT printCharOnDC(CharInfo symbol, POINT lowLeftAngle, int indexLine);
 	void processorVkLeft();
 	void processorWkRight();
+	void recoveryImagesAddress();
 	void save();
+	void setContentFromFile(wchar_t* filename);
 	void validateRectsForPaint();
 public:
 	ContentOfWindow(HWND hWnd);
 	~ContentOfWindow(void);
 	void CaretPosByCoordinates(LPARAM lParam);
-
+	int ChangeFont();
 	void drawText();
 	bool leftMouseIsPress(){return leftMouseButtonPressed;};
 	void mouseSelection(WPARAM wParam, LPARAM lParam);
