@@ -98,12 +98,11 @@ void ContentOfWindow::CaretPosByCoordinates(LPARAM lParam)
 void ContentOfWindow::drawText()
 {
 	int textSize = (int)text.size();
+	HideCaret(hWnd);
+	FillRect(hDC, &clientRect, (HBRUSH) (COLOR_WINDOW+1));
+	validateRectsForPaint();
 	if (textSize > 0)
 	{
-		HideCaret(hWnd);
-		FillRect(hDC, &clientRect, (HBRUSH) (COLOR_WINDOW+1));
-		validateRectsForPaint();
-	
 		POINT lowLeftAngle = {0, lines.at(0).heigth};
 		int oldLowLeftAngleY = lowLeftAngle.y;
 		COLORREF color = GetBkColor(hDC);
@@ -139,10 +138,10 @@ void ContentOfWindow::drawText()
 			processorWkRight();
 		}
 		shiftCaretAfterDrawing = 0;
-		POINT caret = pixelUpperCornerByIndex(caretIndex);
-		SetCaretPos(caret.x, caret.y);
-		ShowCaret(hWnd);
 	}
+	POINT caret = pixelUpperCornerByIndex(caretIndex);
+	SetCaretPos(caret.x, caret.y);
+	ShowCaret(hWnd);
 }
 
 void ContentOfWindow::mouseSelection(WPARAM wParam, LPARAM lParam)
@@ -795,11 +794,12 @@ POINT ContentOfWindow::pixelUpperCornerByIndex(int index)
 	}
 	else
 	{
-		if (index == 0 && textSize > index + 1)
+		if (index == 0 && textSize > index)
 		{
-			result.y -= text.at(index + 1).GetSize().y;
+			result.y -= text.at(index).GetSize().y;
 		}
-		else
+		//говно сие, ибо решает проблему в pixelLowerCornerByIndex при text.size == 0
+		else  if (index != 0) 
 		{
 			result.y -= charSize.y;
 		}
@@ -885,7 +885,7 @@ POINT ContentOfWindow::printCharOnDC(CharInfo symbol, POINT lowLeftAngle,  int i
 
 void ContentOfWindow::processorVkLeft()
 {
-	if (caretIndex < text.size())
+	if (caretIndex != 0)
 	{
 		caretIndex--;
 	}
