@@ -259,6 +259,7 @@ bool ContentOfWindow::processorMenuMessages(WORD id)
 		метод будет готовить все нужные структуры, вызывать диалог выбора шрифтов
 		и ложить выбранный шрифт в currentFont; возможно надо сделать и изменение размера
 		*/
+		ChangeFont();
 		break;
 	default:
 		return false;
