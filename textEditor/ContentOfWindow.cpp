@@ -128,6 +128,7 @@ void ContentOfWindow::drawText()
 				indexLine++;
 			}
 			oldLowLeftAngleY = lowLeftAngle.y;
+			SelectObject(hDC, symbol.font);
 			lowLeftAngle = printCharOnDC(symbol, lowLeftAngle, indexLine);
 		
 			SetBkColor(hDC,color);
@@ -367,14 +368,18 @@ void ContentOfWindow::addCharToText(WORD wParam, Gdiplus::Image* image)
 	CharInfo* pCharInfo; 
 	getLinesInfo();
 	int indexCharInText = caretIndex;
+	SelectObject(hDC, currentFont);
+	calculateCharSize();
 	if (addedSymbol != '\r')
 	{
 		pCharInfo = new CharInfo(addedSymbol, currentFont, charSize);
+		pCharInfo->belowBaseLine = belowCharBaseLine;
 	}
 	else
 	{
 		POINT size = {0, charSize.y};
 		pCharInfo = new CharInfo(addedSymbol, currentFont, size);
+		pCharInfo->belowBaseLine = belowCharBaseLine;
 	}
 	if (image == NULL)
 	{
@@ -384,6 +389,14 @@ void ContentOfWindow::addCharToText(WORD wParam, Gdiplus::Image* image)
 		if (GetCharABCWidths(hDC, addedSymbol,addedSymbol, &abc) )
 		{
 			charWidth = abc.abcA + abc.abcB + abc.abcC;
+			/*if (abc.abcA < 0)
+			{
+				charWidth += abs(abc.abcA);
+			}
+			if (abc.abcC < 0)
+			{
+				charWidth += abs(abc.abcC);
+			}*/
 		}
 		else if (GetCharWidth32W(hDC, addedSymbol, addedSymbol, &iAbc))
 		{
@@ -434,7 +447,8 @@ void ContentOfWindow::calculateCharSize()
 	TEXTMETRIC tm;
 	GetTextMetrics(hDC, &tm);
 	charSize.x = tm.tmAveCharWidth;
-	charSize.y = tm.tmHeight + tm.tmExternalLeading;
+	charSize.y = tm.tmHeight; //+ tm.tmExternalLeading;
+	belowCharBaseLine = tm.tmDescent;
 }
 
 void ContentOfWindow::calculateEndTextPos()
@@ -543,6 +557,7 @@ void ContentOfWindow::getLinesInfo()
 	if (text.size() > 0)
 	{
 		line.heigth = text.at(line.startInText).GetSize().y;
+		line.baseLineY = line.upperLeftCorner + line.heigth - text.at(line.startInText).belowBaseLine;
 		for (int i = 0; i < (int)text.size(); i++)
 		{
 			bool endWindow = false;
@@ -560,6 +575,7 @@ void ContentOfWindow::getLinesInfo()
 				if (text.at(i).GetSize().y > line.maxHeigthChar && text.at(i).GetImage() == NULL)
 				{
 					line.maxHeigthChar = text.at(i).GetSize().y;
+					line.baseLineY = line.upperLeftCorner + line.heigth - text.at(i).belowBaseLine;
 				}
 				//до строчки сверху не нужен
 				pixelPos.x += text.at(i).GetSize().x;
@@ -858,11 +874,11 @@ POINT ContentOfWindow::printCharOnDC(CharInfo symbol, POINT lowLeftAngle,  int i
 		}
 		if (symbol.GetImage() == NULL)
 		{
-			TextOut(hDC, lowLeftAngle.x, lowLeftAngle.y - lineInfo.maxHeigthChar, printedChar, 1);
+			TextOut(hDC, lowLeftAngle.x, lineInfo.baseLineY - (symbol.GetSize().y - symbol.belowBaseLine), printedChar, 1);
 		}
 		else
 		{
-			POINT start = {lowLeftAngle.x, lowLeftAngle.y - symbol.GetSize().y};
+			POINT start = {lowLeftAngle.x, lineInfo.baseLineY - (symbol.GetSize().y - symbol.belowBaseLine)};
 			drawImage(symbol.GetImage(), start);
 		}
 		lowLeftAngle.x += symbol.GetSize().x;

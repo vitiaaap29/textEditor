@@ -18,7 +18,9 @@ class ContentOfWindow
 		Gdiplus::Image* image;
 		wchar_t symbol;
 	public:
+		int belowBaseLine;
 		int numberImage;
+		ABC abc;
 		HFONT font;
 		CharInfo(){}
 		CharInfo(wchar_t symbol, HFONT font, POINT size);
@@ -40,6 +42,7 @@ class ContentOfWindow
 		int heigth;
 		int maxHeigthChar;
 		int upperLeftCorner;
+		int baseLineY;
 		int lengthByX;
 		int startInText;
 		int endInText;
@@ -58,6 +61,7 @@ class ContentOfWindow
 
 private:
 	static const WORD SYMBOL_SIGN_PICTURES = 0x265E;
+	int belowCharBaseLine;
 	bool leftMouseButtonPressed;
 	bool selectionFlag;
 	bool waitingActionOnSelected;
