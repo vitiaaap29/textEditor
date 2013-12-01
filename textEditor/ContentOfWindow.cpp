@@ -70,6 +70,7 @@ ContentOfWindow::ContentOfWindow(HWND hWnd)
 	this->leftMouseButtonPressed = false;
 	this->selectionFlag = false;
 	this->waitingActionOnSelected = false;
+	this->changeFontFlag = false;
 	this->shiftCaretAfterDrawing = 0;
 	this->currentFont = (HFONT) GetStockObject(DEFAULT_GUI_FONT);
 	hDC = GetDC(hWnd);
@@ -255,12 +256,7 @@ bool ContentOfWindow::processorMenuMessages(WORD id)
 		open();
 		break;
 	case ID_FONT:
-		//тут вызов метода Макса
-		/*
-		метод будет готовить все нужные структуры, вызывать диалог выбора шрифтов
-		и ложить выбранный шрифт в currentFont; возможно надо сделать и изменение размера
-		*/
-		ChangeFont();
+		changeFont();
 		break;
 	default:
 		return false;
@@ -341,7 +337,7 @@ void ContentOfWindow::workWithCaret(WORD message)
 		int inText = caretIndex;
 		if (inText < (int)text.size())
 		{
-			heigthCaret = text.at(inText).GetSize().y;
+			heigthCaret = text.at(inText).GetSize().y - text.at(inText).belowBaseLine;
 		}
 		else
 		{
@@ -361,7 +357,6 @@ void ContentOfWindow::workWithCaret(WORD message)
 	}
 }
 
-
 void ContentOfWindow::addCharToText(WORD wParam, Gdiplus::Image* image)
 {
 	wchar_t addedSymbol = wParam;
@@ -370,6 +365,11 @@ void ContentOfWindow::addCharToText(WORD wParam, Gdiplus::Image* image)
 	int indexCharInText = caretIndex;
 	SelectObject(hDC, currentFont);
 	calculateCharSize();
+	if (changeFontFlag)
+	{
+		updateCaretSize();
+		changeFontFlag = false;
+	}
 	if (addedSymbol != '\r')
 	{
 		pCharInfo = new CharInfo(addedSymbol, currentFont, charSize);
@@ -381,22 +381,22 @@ void ContentOfWindow::addCharToText(WORD wParam, Gdiplus::Image* image)
 		pCharInfo = new CharInfo(addedSymbol, currentFont, size);
 		pCharInfo->belowBaseLine = belowCharBaseLine;
 	}
+	ABC abc = {0, 0, 0};
 	if (image == NULL)
 	{
-		ABC abc;
 		int charWidth;
 		int iAbc;
 		if (GetCharABCWidths(hDC, addedSymbol,addedSymbol, &abc) )
 		{
 			charWidth = abc.abcA + abc.abcB + abc.abcC;
-			/*if (abc.abcA < 0)
+			if (abc.abcA < 0)
 			{
 				charWidth += abs(abc.abcA);
 			}
 			if (abc.abcC < 0)
 			{
 				charWidth += abs(abc.abcC);
-			}*/
+			}
 		}
 		else if (GetCharWidth32W(hDC, addedSymbol, addedSymbol, &iAbc))
 		{
@@ -409,6 +409,8 @@ void ContentOfWindow::addCharToText(WORD wParam, Gdiplus::Image* image)
 		pCharInfo->SetImageNumber(images.size() - 1);
 		pCharInfo->SetImage(image, images.size() - 1);
 	}
+	pCharInfo->abc = abc;
+
 	text.insert( text.begin() + indexCharInText, *pCharInfo);
 	getLinesInfo();
 	processorWkRight();
@@ -478,7 +480,7 @@ void ContentOfWindow::changeFontText(int pos1,int pos2, HFONT font)
 	}
 }
 
-int ContentOfWindow::ChangeFont()
+int ContentOfWindow::changeFont()
 {
 	CHOOSEFONT cf;            // common dialog box structure
 	static LOGFONT lf;        // logical font structure
@@ -504,6 +506,7 @@ int ContentOfWindow::ChangeFont()
 	{
 		changeFontText(min(startIndex,caretIndex), max(startIndex,caretIndex),currentFont);
 	}
+	changeFontFlag = true;
 	InvalidateRect(hWnd, NULL, TRUE);
 	return 1;
 }
@@ -570,6 +573,7 @@ void ContentOfWindow::getLinesInfo()
 				if (text.at(i).GetSize().y > line.heigth )
 				{
 					line.heigth = text.at(i).GetSize().y;
+					line.baseLineY = line.upperLeftCorner + line.heigth - text.at(i).belowBaseLine;
 				}
 				//возможно сей кусок не нужен, ибо по левому нижнему углу повелеваем буквой
 				if (text.at(i).GetSize().y > line.maxHeigthChar && text.at(i).GetImage() == NULL)
@@ -807,13 +811,13 @@ POINT ContentOfWindow::pixelUpperCornerByIndex(int index)
 	if ( index < textSize && index > 0)
 	{
 		int number = numberLineByIndex(index);
-		result.y -= text.at(index).GetSize().y;
+		result.y -= text.at(index).GetSize().y + text.at(index).belowBaseLine;
 	}
 	else
 	{
 		if (index == 0 && textSize > index)
 		{
-			result.y -= text.at(index).GetSize().y;
+			result.y -= text.at(index).GetSize().y + text.at(index).belowBaseLine;
 		}
 		//говно сие, ибо решает проблему в pixelLowerCornerByIndex при text.size == 0
 		else  if (index != 0) 
@@ -1018,6 +1022,12 @@ void ContentOfWindow::setContentFromFile(wchar_t* filename)
 			getLinesInfo();
 		}
 	}
+}
+
+void ContentOfWindow::updateCaretSize()
+{
+	workWithCaret(WM_KILLFOCUS);
+	workWithCaret(WM_SETFOCUS);
 }
 
 void ContentOfWindow::validateRectsForPaint()

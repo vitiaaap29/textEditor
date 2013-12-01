@@ -65,6 +65,7 @@ private:
 	bool leftMouseButtonPressed;
 	bool selectionFlag;
 	bool waitingActionOnSelected;
+	bool changeFontFlag;
 	HWND hWnd;
 	HDC hDC;
 	vector<LineInfo> lines;
@@ -87,34 +88,35 @@ private:
 	void calculateCharSize();
 	void calculateEndTextPos();
 	bool caretIncludeSelectArea(POINT caretPos);
+	int changeFont();
 	void changeFontText(int pos1,int pos2, HFONT font);
 	bool deleteSelectedText();
-	void drawImage(Gdiplus::Image* pImage, POINT start); //всё норм
+	void drawImage(Gdiplus::Image* pImage, POINT start);
 	long fileSize(FILE* f);
-	void getLinesInfo(); //новый метод
-	int indexByCaret(const POINT caretPos); //перписан, возможно потреуется доработка
-	OPENFILENAME initializeStructOpenFilename(wchar_t *filename, wchar_t* filter); //и так всё норм
+	void getLinesInfo();
+	int indexByCaret(const POINT caretPos);
+	OPENFILENAME initializeStructOpenFilename(wchar_t *filename, wchar_t* filter);
 	void initializeFonts(); //для Макса
-	bool isPixelBelongsChar(POINT pixel, POINT pixelChar,CharInfo charInfo); //новый метод
-	POINT lParamToPixel(LPARAM lParam); //переписано
+	bool isPixelBelongsChar(POINT pixel, POINT pixelChar,CharInfo charInfo);
+	POINT lParamToPixel(LPARAM lParam); //
 	int numberLineByIndex(int index);
 	POINT normedByUpperCorner(POINT pixel);
-	void open();
-	void openImage(); //переписано
-	POINT pixelLowerCornerByIndex(int index);
-	POINT pixelUpperCornerByIndex(int index);
-	POINT printCharOnDC(CharInfo symbol, POINT lowLeftAngle, int indexLine);
+	void open();//
+	void openImage(); //
+	POINT pixelLowerCornerByIndex(int index);//
+	POINT pixelUpperCornerByIndex(int index);//
+	POINT printCharOnDC(CharInfo symbol, POINT lowLeftAngle, int indexLine);//
 	void processorVkLeft();
 	void processorWkRight();
 	void recoveryImagesAddress();
 	void save();
 	void setContentFromFile(wchar_t* filename);
 	void validateRectsForPaint();
+	void updateCaretSize();
 public:
 	ContentOfWindow(HWND hWnd);
 	~ContentOfWindow(void);
 	void CaretPosByCoordinates(LPARAM lParam);
-	int ChangeFont();
 	void drawText();
 	bool leftMouseIsPress(){return leftMouseButtonPressed;};
 	void mouseSelection(WPARAM wParam, LPARAM lParam);
