@@ -11,17 +11,17 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		content = new ContentOfWindow(hWnd);
 		break;
 	case WM_DESTROY:
-		//MessageBox(NULL, (LPCWSTR)"rgir[ijit", (LPCWSTR)"Errorrr",NULL);
 		content->~ContentOfWindow();
         PostQuitMessage(0);
         break;
 	case WM_LBUTTONDOWN:
 		content->CaretPosByCoordinates(lParam);
 		content->setStartForSelection(lParam);
+		content->invertSelectionFlag();
 		InvalidateRect(hWnd,NULL,true);
 		break;
 	case WM_LBUTTONUP:
-		//content->leftMouseModePress(false);
+		content->invertSelectionFlag();
 		break;
 	case WM_MOUSEMOVE:
 		content->mouseSelection(wParam,lParam);

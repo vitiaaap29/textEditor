@@ -44,14 +44,6 @@ bool ContentOfWindow::CharInfo::operator<(CharInfo chInfo)
 	return result;
 }
 
-//ContentOfWindow::SaverText::SaverText(int countSymbols, int countImages, vector<Gdiplus::Image*> images, vector<CharInfo> text)
-//{
-//	this->countSymbols = countSymbols;
-//	this->countImages = countImages;
-//	this->images = images;
-//	this->text = text;
-//}
-
 ContentOfWindow::LineInfo::LineInfo()
 {
 	this->heigth = 0;
@@ -69,8 +61,8 @@ ContentOfWindow::ContentOfWindow(HWND hWnd)
 	this->endTextPos.y = 0;
 	this->leftMouseButtonPressed = false;
 	this->selectionFlag = false;
-	this->waitingActionOnSelected = false;
 	this->changeFontFlag = false;
+	this->canWorkWithSelected = false;
 	this->shiftCaretAfterDrawing = 0;
 	this->currentFont = (HFONT) GetStockObject(DEFAULT_GUI_FONT);
 	hDC = GetDC(hWnd);
@@ -117,11 +109,6 @@ void ContentOfWindow::drawText()
 			if (selectionFlag && indexIncludeSelectArea(i))
 			{
 				SetBkColor(hDC,highlightColor);
-				waitingActionOnSelected = true;
-			}
-			else if (!selectionFlag)
-			{
-				waitingActionOnSelected = false;
 			}
 		
 			if (oldLowLeftAngleY != lowLeftAngle.y)
@@ -152,21 +139,12 @@ void ContentOfWindow::mouseSelection(WPARAM wParam, LPARAM lParam)
 	{
 		POINT pixelCaretPos = lParamToPixel(lParam);
 		int pixelIndex = indexByCaret(pixelCaretPos);
-		int intervalSelectedSymbol = pixelIndex - caretIndex;
-		if (intervalSelectedSymbol != 0)
+		int distance = pixelIndex - caretIndex;
+		if (distance != 0)
 		{
-			selectionFlag = true;
 			caretIndex = pixelIndex;        
 			InvalidateRect(hWnd, NULL, false);
 		}
-		else
-		{
-			selectionFlag = false;
-		}
-	}
-	else if (selectionFlag)
-	{
-		selectionFlag = false;
 	}
 }
 
@@ -242,7 +220,7 @@ bool ContentOfWindow::processorMenuMessages(WORD id)
 		}
 		break;
 	case ID_CTRL_C:
-		if (OpenClipboard(hWnd))
+		if (OpenClipboard(hWnd) && canWorkWithSelected)
 		{
 			EmptyClipboard();
 			int endCopyIndex = caretIndex;
@@ -326,11 +304,6 @@ void ContentOfWindow::processorWmChar(WORD wParam)
 			addCharToText(L' ');
 		}
 		break;
-	case '\r':
-	case '\n':
-		deleteSelectedText();
-		addCharToText(wParam);
-		break;
 	default:
 		deleteSelectedText();
 		addCharToText(wParam);
@@ -375,7 +348,7 @@ void ContentOfWindow::workWithCaret(WORD message)
 		int inText = caretIndex;
 		if (inText < (int)text.size())
 		{
-			heigthCaret = text.at(inText).GetSize().y - text.at(inText).belowBaseLine;
+			heigthCaret = text.at(inText).GetSize().y;// - text.at(inText).belowBaseLine;
 		}
 		else
 		{
@@ -501,7 +474,7 @@ bool ContentOfWindow::indexIncludeSelectArea(int indexCaret)
 	bool result = false;
 	int min = min(startSelectionIndex, caretIndex);
 	int max = max(startSelectionIndex, caretIndex);
-	if ( indexCaret >= min && indexCaret <= max)
+	if ( indexCaret >= min && indexCaret < max)
 	{
 		result = true;
 	}
@@ -510,10 +483,20 @@ bool ContentOfWindow::indexIncludeSelectArea(int indexCaret)
 
 void ContentOfWindow::changeFontText(int pos1,int pos2, HFONT font)
 {
-	for (int i = pos1; i< pos2; i++)
+	int countDeleted = abs(pos2 - pos1);
+	WORD* symbols = new WORD[countDeleted];
+	for (int i = pos1; i < pos2; i++)
 	{
-		text[i].font = font;
+		symbols[i - pos1] = text.at(i).GetSymbol();
 	}
+	text.erase(text.begin() + pos1, text.begin() + pos2);
+	int oldCaret = caretIndex;
+	caretIndex = pos1;
+	for (int j = 0; j < countDeleted; j++)
+	{
+		addCharToText(symbols[j], NULL);
+	}
+	caretIndex = oldCaret;
 }
 
 void ContentOfWindow::changeFont()
@@ -538,12 +521,11 @@ void ContentOfWindow::changeFont()
 		currentFont = hfont;
 	}
 
-	if (selectionFlag)
+	if (canWorkWithSelected)
 	{
 		changeFontText(min(startSelectionIndex,caretIndex), max(startSelectionIndex,caretIndex),currentFont);
 	}
-
-
+	getLinesInfo();
 	changeFontFlag = true;
 	InvalidateRect(hWnd, NULL, TRUE);
 }
@@ -551,15 +533,14 @@ void ContentOfWindow::changeFont()
 bool ContentOfWindow::deleteSelectedText()
 {
 	bool result = false;
-	if (waitingActionOnSelected)
+	if (canWorkWithSelected == true)
 	{
-		int endDeletedIndex = caretIndex;
-		int min = min(startSelectionIndex,endDeletedIndex);
-		int max = max(startSelectionIndex,endDeletedIndex);
+		int min = min(startSelectionIndex, caretIndex);
+		int max = max(startSelectionIndex, caretIndex);
 		int difference = max - min;
 		vector<CharInfo>::iterator it = text.begin();
 		text.erase(it + min,it + max);
-		if (startSelectionIndex < endDeletedIndex)
+		if (startSelectionIndex < caretIndex)
 		{
 			for (int i = 0; i < difference; i++)
 			{
@@ -567,7 +548,7 @@ bool ContentOfWindow::deleteSelectedText()
 			}
 		}
 		selectionFlag = false;
-		waitingActionOnSelected = false;
+		canWorkWithSelected = false;
 		result = true;
 		getLinesInfo();
 	}

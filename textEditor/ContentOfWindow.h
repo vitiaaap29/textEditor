@@ -64,7 +64,7 @@ private:
 	int belowCharBaseLine;
 	bool leftMouseButtonPressed;
 	bool selectionFlag;
-	bool waitingActionOnSelected;
+	bool canWorkWithSelected;
 	bool changeFontFlag;
 	HWND hWnd;
 	HDC hDC;
@@ -118,16 +118,23 @@ public:
 	~ContentOfWindow(void);
 	void CaretPosByCoordinates(LPARAM lParam);
 	void drawText();
+	void invertSelectionFlag();
 	bool leftMouseIsPress(){return leftMouseButtonPressed;};
 	void mouseSelection(WPARAM wParam, LPARAM lParam);
 	void processorArrows(WPARAM wParam);
 	bool processorMenuMessages(WORD id);
 	void processorWmChar(WORD wParam);
 	void setSizeAreaType(LPARAM param);
-	void setFont(HFONT font){this->currentFont = font;}
 	void setStartForSelection(LPARAM lParam);
 	void leftMouseModePress(bool mode){this->leftMouseButtonPressed = mode;}
 	void workWithCaret(WORD message);
 };
 
-
+inline void ContentOfWindow::invertSelectionFlag()
+{
+	selectionFlag = !selectionFlag;
+	if (selectionFlag == true)
+	{
+		canWorkWithSelected = true;
+	}
+}
