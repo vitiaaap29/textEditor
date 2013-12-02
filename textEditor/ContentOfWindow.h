@@ -88,7 +88,7 @@ private:
 	void calculateCharSize();
 	void calculateEndTextPos();
 	bool indexIncludeSelectArea(int indexCaret);
-	int changeFont();
+	void changeFont();
 	void changeFontText(int pos1,int pos2, HFONT font);
 	bool deleteSelectedText();
 	void drawImage(Gdiplus::Image* pImage, POINT start);
@@ -110,7 +110,7 @@ private:
 	void processorWkRight();
 	void recoveryImagesAddress();
 	void save();
-	void setContentFromFile(wchar_t* filename);
+	bool setContentFromFile(wchar_t* filename);
 	void validateRectsForPaint();
 	void updateCaretSize();
 public:

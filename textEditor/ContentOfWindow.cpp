@@ -156,7 +156,7 @@ void ContentOfWindow::mouseSelection(WPARAM wParam, LPARAM lParam)
 		if (intervalSelectedSymbol != 0)
 		{
 			selectionFlag = true;
-			caretIndex = pixelIndex;
+			caretIndex = pixelIndex;        
 			InvalidateRect(hWnd, NULL, false);
 		}
 		else
@@ -173,6 +173,7 @@ void ContentOfWindow::mouseSelection(WPARAM wParam, LPARAM lParam)
 void ContentOfWindow::processorArrows(WPARAM wParam) 
 {
 	HideCaret(hWnd);
+	int numberLine;
 	switch (wParam)
 	{
 		case VK_LEFT:
@@ -184,8 +185,20 @@ void ContentOfWindow::processorArrows(WPARAM wParam)
 			break;
 
 		case VK_UP:
+			numberLine = numberLineByIndex(caretIndex);
+			if (numberLine > 0 && numberLine < lines.size())
+			{
+				LineInfo line = lines[numberLine];
+				caretIndex = lines[--numberLine].startInText + (caretIndex - line.startInText);
+			}
 			break;
 		case VK_DOWN:
+			numberLine = numberLineByIndex(caretIndex);
+			if (numberLine < lines.size() - 1)
+			{
+				LineInfo line = lines[numberLine];
+				caretIndex = lines[++numberLine].startInText + (caretIndex - line.startInText);
+			}
 			break;
 	}
 	POINT caret = pixelUpperCornerByIndex(caretIndex);
@@ -503,7 +516,7 @@ void ContentOfWindow::changeFontText(int pos1,int pos2, HFONT font)
 	}
 }
 
-int ContentOfWindow::changeFont()
+void ContentOfWindow::changeFont()
 {
 	CHOOSEFONT cf;            // common dialog box structure
 	static LOGFONT lf;        // logical font structure
@@ -533,7 +546,6 @@ int ContentOfWindow::changeFont()
 
 	changeFontFlag = true;
 	InvalidateRect(hWnd, NULL, TRUE);
-	return 1;
 }
 
 bool ContentOfWindow::deleteSelectedText()
@@ -727,7 +739,7 @@ OPENFILENAME ContentOfWindow::initializeStructOpenFilename(wchar_t *filename, wc
 	ofn.hwndOwner = hWnd;
 	ofn.lpstrFile = filename;
 	ofn.nMaxFile = sizeof(*filename) * 256;
-	ofn.lpstrFilter = filter;L"Image\0*.bmp;*.jpg\0";
+	ofn.lpstrFilter = filter;//L"Image\0*.bmp;*.jpg\0";
 	ofn.nFilterIndex = 1;
 	ofn.lpstrFileTitle = NULL;
 	ofn.nMaxFileTitle = 0;
@@ -757,16 +769,17 @@ int ContentOfWindow::numberLineByIndex(int index)
 	LineInfo line = lines.at(result);
 	for(;result < lines.size(); result++)
 	{
+		line = lines.at(result);
 		if (index >= line.startInText && index <= line.endInText)
 		{
-			if (result + 1 < lines.size())
+			/*if (result + 1 < lines.size())
 			{
 				line = lines.at(result + 1);
 				if (index == line.startInText)
 				{
 					result++;
 				}
-			}
+			}*/
 			break;
 		}
 	}
@@ -838,7 +851,7 @@ POINT ContentOfWindow::pixelUpperCornerByIndex(int index)
 	POINT result = pixelLowerCornerByIndex(index);
 	if ( index < textSize && index > 0)
 	{
-		int number = numberLineByIndex(index);
+		//int number = numberLineByIndex(index);
 		result.y -= text.at(index).GetSize().y + text.at(index).belowBaseLine;
 	}
 	else
@@ -862,7 +875,10 @@ void ContentOfWindow::open()
 	OPENFILENAME ofn = initializeStructOpenFilename(filename, L"0*.linux\0\0");
 	if(GetOpenFileName(&ofn))
     {
-		setContentFromFile(filename);
+		if (!setContentFromFile(filename))
+		{
+			MessageBox(NULL, (LPCWSTR)"", (LPCWSTR)"Damaged file",NULL);
+		}
 		InvalidateRect(hWnd, NULL, true);
     }
 }
@@ -1008,8 +1024,9 @@ void ContentOfWindow::save()
     }
 }
 
-void ContentOfWindow::setContentFromFile(wchar_t* filename)
+bool ContentOfWindow::setContentFromFile(wchar_t* filename)
 {
+	bool result = false;
 	SaverText opener;
 	FILE *f = _wfopen(filename,L"r+b");
 	if (f != NULL)
@@ -1045,11 +1062,12 @@ void ContentOfWindow::setContentFromFile(wchar_t* filename)
 				Bitmap *bitmap = new Bitmap(size.x, size.y, stride, PixelFormat32bppRGB, bytesImage);
 				images.push_back(bitmap);
 			}
-
+			result = true;
 			recoveryImagesAddress();
 			getLinesInfo();
 		}
 	}
+	return result;
 }
 
 void ContentOfWindow::updateCaretSize()

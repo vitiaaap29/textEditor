@@ -11,7 +11,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		content = new ContentOfWindow(hWnd);
 		break;
 	case WM_DESTROY:
-		MessageBox(NULL, (LPCWSTR)"rgir[ijit", (LPCWSTR)"Errorrr",NULL);
+		//MessageBox(NULL, (LPCWSTR)"rgir[ijit", (LPCWSTR)"Errorrr",NULL);
 		content->~ContentOfWindow();
         PostQuitMessage(0);
         break;

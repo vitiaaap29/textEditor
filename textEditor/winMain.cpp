@@ -9,13 +9,13 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	LPCSTR errorMesage = "Это порнуха";
 	if (!RegWinClass(hInstance, WndProc, className))
 	{
-		MessageBox(NULL, (LPCWSTR)errorMesage, (LPCWSTR)"Errorrr",NULL);
+		MessageBox(NULL, (LPCWSTR)errorMesage, (LPCWSTR)"Error register class. Reboot the system",NULL);
 		return FALSE;
 	}
 
 	if (!initWindow(className,title, hInstance,nCmdShow) )
 	{
-		MessageBox(NULL, (LPCWSTR)errorMesage, (LPCWSTR)"Errorrr",NULL);
+		MessageBox(NULL, (LPCWSTR)errorMesage, (LPCWSTR)"Error register class. Reboot the system",NULL);
 		return FALSE;
 	}
 
