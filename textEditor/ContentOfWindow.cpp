@@ -114,7 +114,7 @@ void ContentOfWindow::drawText()
 		{
 			CharInfo symbol = text.at(i);
  
-			if (selectionFlag && caretIncludeSelectArea(lowLeftAngle))
+			if (selectionFlag && indexIncludeSelectArea(i))
 			{
 				SetBkColor(hDC,highlightColor);
 				waitingActionOnSelected = true;
@@ -159,6 +159,10 @@ void ContentOfWindow::mouseSelection(WPARAM wParam, LPARAM lParam)
 			caretIndex = pixelIndex;
 			InvalidateRect(hWnd, NULL, false);
 		}
+		else
+		{
+			selectionFlag = false;
+		}
 	}
 	else if (selectionFlag)
 	{
@@ -202,20 +206,25 @@ bool ContentOfWindow::processorMenuMessages(WORD id)
 		if (OpenClipboard(hWnd))
 		{
 			HANDLE hData = GetClipboardData(CF_UNICODETEXT);
-			wstring fromClipboard = (wchar_t*)GlobalLock(hData);
-			GlobalUnlock(hData);
-			CloseClipboard();
-			deleteSelectedText();
-			int pastedIndex = caretIndex;
-			for(int i = 0; i < (int)fromClipboard.size(); i++)
+			if (hData != NULL)
 			{
-				if (fromClipboard.at(i) != '\n')
+				wstring fromClipboard = (wchar_t*)GlobalLock(hData);
+				GlobalUnlock(hData);
+				deleteSelectedText();
+				int pastedIndex = caretIndex;
+				getLinesInfo();
+				for(int i = 0; i < (int)fromClipboard.size(); i++)
 				{
-					CharInfo pastedChar(fromClipboard.at(i), currentFont,charSize);
-					text.insert(text.begin() + pastedIndex,pastedChar);
+					if (fromClipboard.at(i) != '\n')
+					{
+						WORD addedSymbol = fromClipboard.at(i);
+						addCharToText(addedSymbol, NULL);
+					}
 				}
+				getLinesInfo();
 			}
-			shiftCaretAfterDrawing = fromClipboard.size();
+			CloseClipboard;
+			shiftCaretAfterDrawing = 0;
 			InvalidateRect(hWnd, NULL, false);
 		}
 		break;
@@ -223,23 +232,23 @@ bool ContentOfWindow::processorMenuMessages(WORD id)
 		if (OpenClipboard(hWnd))
 		{
 			EmptyClipboard();
-			int startCopyIndex = indexByCaret(startForSelection);
 			int endCopyIndex = caretIndex;
-			int minIndex = min(startCopyIndex,endCopyIndex);
-			int maxIndex =  max(startCopyIndex,endCopyIndex);
-			wstring copyText = new wchar_t[minIndex];
-			for (int i = minIndex; i <= maxIndex; i++)
+			int minIndex = min(startSelectionIndex,endCopyIndex);
+			int maxIndex =  max(startSelectionIndex,endCopyIndex);
+			wstring copyText = new wchar_t[maxIndex - minIndex];
+			int j = 0;
+			for (int i = minIndex; i < maxIndex; i++, j++)
 			{
-				copyText[i] = text[i].GetSymbol();
+				copyText[j] = text[i].GetSymbol();
 			}
 			int find;
 			while( (find = copyText.find('\r')) != wstring::npos)
 			{
 				copyText.insert(copyText.begin() + find + 1,'\n');
 			}
-			HGLOBAL hglbCopy = GlobalAlloc(GMEM_MOVEABLE, copyText.size() * sizeof(copyText[0]));
+			HGLOBAL hglbCopy = GlobalAlloc(GMEM_MOVEABLE, (maxIndex - minIndex) * sizeof(copyText[0]));
 			wchar_t* lptstrCopy = (wchar_t*)GlobalLock(hglbCopy); 
-			memcpy(lptstrCopy,&copyText, copyText.size() * sizeof(copyText[0]));
+			memcpy(lptstrCopy,&copyText, (maxIndex - minIndex) * sizeof(copyText[0]));
 			GlobalUnlock(hglbCopy);
 			SetClipboardData(CF_UNICODETEXT, hglbCopy);
 			CloseClipboard();
@@ -324,8 +333,8 @@ void ContentOfWindow::setSizeAreaType(LPARAM param)
 
 void ContentOfWindow::setStartForSelection(LPARAM lParam)
 {
-	startForSelection = lParamToPixel(lParam);
-	//возможно тут лучше нормировать
+	POINT startForSelection = lParamToPixel(lParam);
+	startSelectionIndex = indexByCaret(startForSelection);
 }
 
 void ContentOfWindow::workWithCaret(WORD message)
@@ -458,14 +467,12 @@ void ContentOfWindow::calculateEndTextPos()
 	endTextPos = pixelUpperCornerByIndex(text.size()-1);
 }
 
-bool ContentOfWindow::caretIncludeSelectArea(POINT position)
+bool ContentOfWindow::indexIncludeSelectArea(int indexCaret)
 {
 	bool result = false;
-	int startIndex = indexByCaret(startForSelection);
-	int index = indexByCaret(position);
-	int min = min(startIndex, caretIndex);
-	int max = max(startIndex, caretIndex);
-	if (min >= index && index <= max)
+	int min = min(startSelectionIndex, caretIndex);
+	int max = max(startSelectionIndex, caretIndex);
+	if ( indexCaret >= min && indexCaret <= max)
 	{
 		result = true;
 	}
@@ -490,22 +497,24 @@ int ContentOfWindow::changeFont()
 	// Initialize CHOOSEFONT
 	ZeroMemory(&cf, sizeof(cf));
 	ZeroMemory(&lf, sizeof(lf));
+	cf.nSizeMin = 14;
 	cf.lStructSize = sizeof (cf);
 	cf.hwndOwner = hWnd;
 	cf.lpLogFont = &lf;
 	cf.rgbColors = rgbCurrent;
-	cf.Flags = CF_SCREENFONTS | CF_EFFECTS;
+	cf.Flags = CF_SCREENFONTS | CF_EFFECTS | CF_TTONLY; //| CF_LIMITSIZE;
 	if (ChooseFont(&cf)==TRUE)
 	{
 		hfont = CreateFontIndirect(cf.lpLogFont);
 		currentFont = hfont;
 	}
 
-	int startIndex = indexByCaret(startForSelection);
-	if (startIndex != caretIndex)
+	if (selectionFlag)
 	{
-		changeFontText(min(startIndex,caretIndex), max(startIndex,caretIndex),currentFont);
+		changeFontText(min(startSelectionIndex,caretIndex), max(startSelectionIndex,caretIndex),currentFont);
 	}
+
+
 	changeFontFlag = true;
 	InvalidateRect(hWnd, NULL, TRUE);
 	return 1;
@@ -516,12 +525,11 @@ bool ContentOfWindow::deleteSelectedText()
 	bool result = false;
 	if (waitingActionOnSelected)
 	{
-		int startDeletedIndex = indexByCaret(startForSelection);
 		int endDeletedIndex = caretIndex;
-		int difference = max(startDeletedIndex,endDeletedIndex) - min(startDeletedIndex,endDeletedIndex);
+		int difference = max(startSelectionIndex,endDeletedIndex) - min(startSelectionIndex,endDeletedIndex);
 		vector<CharInfo>::iterator it = text.begin();
-		text.erase(it + min(startDeletedIndex,endDeletedIndex),it + max(startDeletedIndex,endDeletedIndex));
-		if (startDeletedIndex < endDeletedIndex)
+		text.erase(it + min(startSelectionIndex,endDeletedIndex),it + max(startSelectionIndex,endDeletedIndex));
+		if (startSelectionIndex < endDeletedIndex)
 		{
 			for (int i = 0; i < difference; i++)
 			{
@@ -530,6 +538,7 @@ bool ContentOfWindow::deleteSelectedText()
 		}
 		selectionFlag = false;
 		result = true;
+		getLinesInfo();
 	}
 	return result;
 }

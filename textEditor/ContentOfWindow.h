@@ -74,7 +74,7 @@ private:
 	POINT clientSize;
 	POINT charSize;
 	POINT endTextPos;
-	POINT startForSelection;
+	int startSelectionIndex;
 	int shiftCaretAfterDrawing;
 	RECT clientRect;
 	HFONT currentFont;
@@ -87,7 +87,7 @@ private:
 	bool belongsPixelToLineByX(POINT pixel, LineInfo line);
 	void calculateCharSize();
 	void calculateEndTextPos();
-	bool caretIncludeSelectArea(POINT caretPos);
+	bool indexIncludeSelectArea(int indexCaret);
 	int changeFont();
 	void changeFontText(int pos1,int pos2, HFONT font);
 	bool deleteSelectedText();
