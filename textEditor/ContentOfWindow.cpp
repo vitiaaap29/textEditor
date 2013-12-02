@@ -245,10 +245,13 @@ bool ContentOfWindow::processorMenuMessages(WORD id)
 			}
 			int find;
 			int countSlashN = 0;
-			while( (find = copyText.find('\r')) != wstring::npos)
+			wstring::iterator it = copyText.begin();
+			int pos = 0;
+			while( (find = copyText.find('\r', pos) )!= wstring::npos)
 			{
 				copyText.insert(copyText.begin() + find + 1,'\n');
 				countSlashN++;
+				pos = find + 1;
 			}
 			// промежуточный массив, идея говно но лучшего не придумали
 			sizeClipboard += countSlashN;
