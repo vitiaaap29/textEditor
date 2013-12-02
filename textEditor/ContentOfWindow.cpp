@@ -235,20 +235,33 @@ bool ContentOfWindow::processorMenuMessages(WORD id)
 			int endCopyIndex = caretIndex;
 			int minIndex = min(startSelectionIndex,endCopyIndex);
 			int maxIndex =  max(startSelectionIndex,endCopyIndex);
-			wstring copyText = new wchar_t[maxIndex - minIndex];
+			int sizeClipboard = maxIndex - minIndex;
+
+			wstring copyText = new wchar_t[sizeClipboard];
 			int j = 0;
-			for (int i = minIndex; i < maxIndex; i++, j++)
+			for (int i = minIndex; i < maxIndex ; i++, j++)
 			{
 				copyText[j] = text[i].GetSymbol();
 			}
 			int find;
+			int countSlashN = 0;
 			while( (find = copyText.find('\r')) != wstring::npos)
 			{
 				copyText.insert(copyText.begin() + find + 1,'\n');
+				countSlashN++;
 			}
-			HGLOBAL hglbCopy = GlobalAlloc(GMEM_MOVEABLE, (maxIndex - minIndex) * sizeof(copyText[0]));
+			// промежуточный массив, идея говно но лучшего не придумали
+			sizeClipboard += countSlashN;
+			wchar_t* textInClipboard = new wchar_t[sizeClipboard + 1]; 
+			for (int j = 0; j < sizeClipboard; j++)
+			{
+				textInClipboard[j] = copyText.at(j);
+			}
+			textInClipboard[sizeClipboard] = L'\0';
+			sizeClipboard++;
+			HGLOBAL hglbCopy = GlobalAlloc(GMEM_MOVEABLE, sizeClipboard * sizeof(textInClipboard[0]));
 			wchar_t* lptstrCopy = (wchar_t*)GlobalLock(hglbCopy); 
-			memcpy(lptstrCopy,&copyText, (maxIndex - minIndex) * sizeof(copyText[0]));
+			memcpy(lptstrCopy,textInClipboard, sizeClipboard * sizeof(textInClipboard[0]));
 			GlobalUnlock(hglbCopy);
 			SetClipboardData(CF_UNICODETEXT, hglbCopy);
 			CloseClipboard();
@@ -526,9 +539,11 @@ bool ContentOfWindow::deleteSelectedText()
 	if (waitingActionOnSelected)
 	{
 		int endDeletedIndex = caretIndex;
-		int difference = max(startSelectionIndex,endDeletedIndex) - min(startSelectionIndex,endDeletedIndex);
+		int min = min(startSelectionIndex,endDeletedIndex);
+		int max = max(startSelectionIndex,endDeletedIndex);
+		int difference = max - min;
 		vector<CharInfo>::iterator it = text.begin();
-		text.erase(it + min(startSelectionIndex,endDeletedIndex),it + max(startSelectionIndex,endDeletedIndex));
+		text.erase(it + min,it + max);
 		if (startSelectionIndex < endDeletedIndex)
 		{
 			for (int i = 0; i < difference; i++)
@@ -537,6 +552,7 @@ bool ContentOfWindow::deleteSelectedText()
 			}
 		}
 		selectionFlag = false;
+		waitingActionOnSelected = false;
 		result = true;
 		getLinesInfo();
 	}
