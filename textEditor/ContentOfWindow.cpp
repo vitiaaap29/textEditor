@@ -179,9 +179,10 @@ void ContentOfWindow::processorArrows(WPARAM wParam)
 			}
 			break;
 	}
+
+	updateCaret(caretIndex);
 	POINT caret = pixelUpperCornerByIndex(caretIndex);
 	SetCaretPos(caret.x, caret.y );
-	
 	ShowCaret(hWnd);
 }
 
@@ -1049,6 +1050,18 @@ bool ContentOfWindow::setContentFromFile(wchar_t* filename)
 		}
 	}
 	return result;
+}
+
+void ContentOfWindow::updateCaret(int index)
+{
+	int height = charSize.y;
+	if (index < text.size() )
+	{
+		height = text.at(index).GetSize().y;
+	}
+	HideCaret(hWnd);
+	DestroyCaret();
+	CreateCaret(hWnd, NULL, NULL, height);
 }
 
 void ContentOfWindow::updateCaretSize()

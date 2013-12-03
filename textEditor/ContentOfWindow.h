@@ -19,6 +19,7 @@ class ContentOfWindow
 		wchar_t symbol;
 	public:
 		int belowBaseLine;
+		int leading;
 		int numberImage;
 		ABC abc;
 		HFONT font;
@@ -112,6 +113,7 @@ private:
 	void save();
 	bool setContentFromFile(wchar_t* filename);
 	void validateRectsForPaint();
+	void updateCaret(int index);
 	void updateCaretSize();
 public:
 	ContentOfWindow(HWND hWnd);
