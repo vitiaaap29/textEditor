@@ -105,12 +105,14 @@ private:
 	void changeFont();
 	void changeFontText(int pos1,int pos2, HFONT font);
 	bool deleteSelectedText();
+	void drawCaret(int indexCaretInTExt);
 	void drawImage(Gdiplus::Image* pImage, POINT start);
 	long fileSize(FILE* f);
 	void getLinesInfo();
 	int indexByCaret(const POINT caretPos);
 	OPENFILENAME initializeStructOpenFilename(wchar_t *filename, wchar_t* filter);
 	bool isPixelBelongsChar(POINT pixel, POINT pixelChar,CharInfo charInfo);
+	bool isEndWindow(POINT pixel, int indexInText);
 	POINT lParamToPixel(LPARAM lParam);
 	int numberLineByIndex(int index);
 	POINT normedByUpperCorner(POINT pixel);

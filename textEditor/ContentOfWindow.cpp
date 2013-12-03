@@ -87,6 +87,8 @@ void ContentOfWindow::CaretPosByCoordinates(LPARAM lParam)
 {
 	POINT pixel = lParamToPixel(lParam);
 	caretIndex = indexByCaret(pixel);
+	updateCaret(caretIndex);
+	drawCaret(caretIndex);
 }
 
 void ContentOfWindow::drawText()
@@ -129,9 +131,7 @@ void ContentOfWindow::drawText()
 		}
 		shiftCaretAfterDrawing = 0;
 	}
-	POINT caret = pixelUpperCornerByIndex(caretIndex);
-	SetCaretPos(caret.x, caret.y);
-	ShowCaret(hWnd);
+	drawCaret(caretIndex);
 }
 
 void ContentOfWindow::mouseSelection(WPARAM wParam, LPARAM lParam)
@@ -143,7 +143,8 @@ void ContentOfWindow::mouseSelection(WPARAM wParam, LPARAM lParam)
 		int distance = pixelIndex - caretIndex;
 		if (distance != 0)
 		{
-			caretIndex = pixelIndex;        
+			caretIndex = pixelIndex;
+			updateCaret(caretIndex);
 			InvalidateRect(hWnd, NULL, false);
 		}
 	}
@@ -168,7 +169,15 @@ void ContentOfWindow::processorArrows(WPARAM wParam)
 			if (numberLine > 0 && numberLine < lines.size())
 			{
 				LineInfo line = lines[numberLine];
-				caretIndex = lines[--numberLine].startInText + (caretIndex - line.startInText);
+				int offsetInLine = caretIndex - line.startInText;
+				if (offsetInLine < lines[numberLine - 1].endInText)
+				{
+					caretIndex = lines[numberLine - 1].startInText + offsetInLine;
+				}
+				else
+				{
+					caretIndex = lines[numberLine - 1].endInText;
+				}
 			}
 			break;
 		case VK_DOWN:
@@ -176,7 +185,15 @@ void ContentOfWindow::processorArrows(WPARAM wParam)
 			if (numberLine < lines.size() - 1)
 			{
 				LineInfo line = lines[numberLine];
-				caretIndex = lines[++numberLine].startInText + (caretIndex - line.startInText);
+				int offsetInLine = caretIndex - line.startInText;
+				if (offsetInLine < lines[numberLine + 1].endInText)
+				{
+					caretIndex = lines[numberLine + 1].startInText + offsetInLine;
+				}
+				else
+				{
+					caretIndex = lines[numberLine + 1].endInText;
+				}
 			}
 			break;
 	}
@@ -344,6 +361,7 @@ void ContentOfWindow::setStartForSelection(LPARAM lParam)
 void ContentOfWindow::workWithCaret(WORD message)
 {
 	calculateCharSize();
+	//updateCaret(caretIndex);
 	if (message == WM_SETFOCUS)
 	{
 		int heigthCaret;
@@ -372,17 +390,14 @@ void ContentOfWindow::workWithCaret(WORD message)
 
 void ContentOfWindow::addCharToText(WORD wParam, Gdiplus::Image* image)
 {
+	canWorkWithSelected = false;
+	selectionFlag = false;
 	wchar_t addedSymbol = wParam;
 	CharInfo* pCharInfo; 
 	getLinesInfo();
 	int indexCharInText = caretIndex;
 	SelectObject(hDC, currentFont);
 	calculateCharSize();
-	if (changeFontFlag)
-	{
-		updateCaretSize();
-		changeFontFlag = false;
-	}
 	if (addedSymbol != '\r')
 	{
 		pCharInfo = new CharInfo(addedSymbol, currentFont, charSize);
@@ -528,9 +543,11 @@ void ContentOfWindow::changeFont()
 	if (canWorkWithSelected)
 	{
 		changeFontText(min(startSelectionIndex,caretIndex), max(startSelectionIndex,caretIndex),currentFont);
+		canWorkWithSelected = false;
 	}
 	getLinesInfo();
-	changeFontFlag = true;
+	updateCaret(caretIndex);
+	drawCaret(caretIndex);
 	InvalidateRect(hWnd, NULL, TRUE);
 }
 
@@ -557,6 +574,13 @@ bool ContentOfWindow::deleteSelectedText()
 		getLinesInfo();
 	}
 	return result;
+}
+
+void ContentOfWindow::drawCaret(int indexCaretInTExt)
+{
+	POINT caret = pixelUpperCornerByIndex(indexCaretInTExt);
+	SetCaretPos(caret.x, caret.y);
+	ShowCaret(hWnd);
 }
 
 void ContentOfWindow::drawImage(Gdiplus::Image* pImage, POINT start)
@@ -593,45 +617,39 @@ void ContentOfWindow::getLinesInfo()
 			{
 				endWindow = clientSize.x - pixelPos.x - text.at(i).GetSize().x < text.at(i+1).GetSize().x;
 			}
-			if (text.at(i).GetSymbol() != '\r' && !endWindow) 
+			else
+			{
+				endWindow = clientSize.x - pixelPos.x - text.at(i).GetSize().x < charSize.x;
+			}
+
+			if (text.at(i).GetSymbol() != '\r') 
 			{
 				if (text.at(i).GetSize().y > line.heigth )
 				{
 					line.heigth = text.at(i).GetSize().y;
 					line.baseLineY = line.upperLeftCorner + line.heigth - text.at(i).belowBaseLine;
 				}
-				//возможно сей кусок не нужен, ибо по левому нижнему углу повелеваем буквой
+
 				if (text.at(i).GetSize().y > line.maxHeigthChar && text.at(i).GetImage() == NULL)
 				{
 					line.maxHeigthChar = text.at(i).GetSize().y;
 					line.baseLineY = line.upperLeftCorner + line.heigth - text.at(i).belowBaseLine;
 				}
-				//до строчки сверху не нужен
-				pixelPos.x += text.at(i).GetSize().x;
-			}
-			else if (!endWindow)
-			{
-				line.endInText = i;
-				line.lengthByX = pixelPos.x;
-				lines.push_back(line);
-				pixelPos.x = 0;
-				if (i+1 < (int)text.size())
-				{
-					line.startInText = i + 1;
-					line.upperLeftCorner += line.heigth;
-					line.lengthByX = 0;
-					line.heigth = text.at(line.startInText).GetSize().y;
-					line.maxHeigthChar = 0;
-				} 
-			}
-			else
-			{
-				line.endInText = i;
-				pixelPos.x += text.at(i).GetSize().x;
-				line.lengthByX = pixelPos.x;
-				lines.push_back(line);
-				pixelPos.x = 0;
 
+				if ( text.at(i).GetImage() != NULL && text.at(i).GetSize().y >= line.heigth)
+				{
+					line.baseLineY = line.upperLeftCorner + line.heigth - text.at(i).belowBaseLine;
+				}
+				pixelPos.x += text.at(i).GetSize().x;
+			}
+
+			if (text.at(i).GetSymbol() == '\r' || endWindow)
+			{
+				line.endInText = i;
+				line.lengthByX = pixelPos.x;
+				lines.push_back(line);
+				pixelPos.x = 0;
+				
 				line.startInText = i + 1;
 				line.upperLeftCorner += line.heigth;
 				line.lengthByX = 0;
@@ -748,25 +766,33 @@ bool ContentOfWindow::isPixelBelongsChar(POINT pixel, POINT pixelChar,CharInfo c
 	return result;
 }
 
+bool ContentOfWindow::isEndWindow(POINT pixel, int indexInText)
+{
+	bool result = false;
+	if ( indexInText < (int)text.size())
+	{
+		result = clientSize.x - pixel.x - text.at(indexInText).GetSize().x < 0;
+	}
+	return result;
+}
+
 int ContentOfWindow::numberLineByIndex(int index)
 {
 	int result = 0;
-	LineInfo line = lines.at(result);
-	for(;result < lines.size(); result++)
+	if (index < (int)text.size())
 	{
-		line = lines.at(result);
-		if (index >= line.startInText && index <= line.endInText)
+		LineInfo line = lines.at(result);
+		bool isFind = index >= line.startInText && index <= line.endInText;
+		while(!isFind)
 		{
-			/*if (result + 1 < lines.size())
-			{
-				line = lines.at(result + 1);
-				if (index == line.startInText)
-				{
-					result++;
-				}
-			}*/
-			break;
+			result++;
+			line = lines.at(result);
+			isFind = index >= line.startInText && index <= line.endInText;
 		}
+	}
+	else
+	{
+		result = lines.size() - 1;
 	}
 	return result;
 }
@@ -878,6 +904,7 @@ void ContentOfWindow::openImage()
 		if (GetLastError() == ERROR_SUCCESS)
 		{
 			images.push_back(image);
+			deleteSelectedText();
 			addCharToText(SYMBOL_SIGN_PICTURES, image);
 			drawText();
 		}
