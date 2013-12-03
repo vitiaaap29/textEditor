@@ -59,6 +59,19 @@ class ContentOfWindow
 	public:
 		//SaverText(int countSymbols, int countImages, vector<Gdiplus::Image> *images, vector<CharInfo> text);
 	};
+public:
+	ContentOfWindow(HWND hWnd);
+	~ContentOfWindow(void);
+	void CaretPosByCoordinates(LPARAM lParam);
+	void drawText();
+	void invertSelectionFlag();
+	void mouseSelection(WPARAM wParam, LPARAM lParam);
+	void processorArrows(WPARAM wParam);
+	bool processorMenuMessages(WORD id);
+	void processorWmChar(WORD wParam);
+	void setSizeAreaType(LPARAM param);
+	void setStartForSelection(LPARAM lParam);
+	void workWithCaret(WORD message);
 
 private:
 	static const WORD SYMBOL_SIGN_PICTURES = 0x265E;
@@ -97,16 +110,15 @@ private:
 	void getLinesInfo();
 	int indexByCaret(const POINT caretPos);
 	OPENFILENAME initializeStructOpenFilename(wchar_t *filename, wchar_t* filter);
-	void initializeFonts(); //для Макса
 	bool isPixelBelongsChar(POINT pixel, POINT pixelChar,CharInfo charInfo);
-	POINT lParamToPixel(LPARAM lParam); //
+	POINT lParamToPixel(LPARAM lParam);
 	int numberLineByIndex(int index);
 	POINT normedByUpperCorner(POINT pixel);
-	void open();//
-	void openImage(); //
-	POINT pixelLowerCornerByIndex(int index);//
-	POINT pixelUpperCornerByIndex(int index);//
-	POINT printCharOnDC(CharInfo symbol, POINT lowLeftAngle, int indexLine);//
+	void open();
+	void openImage(); 
+	POINT pixelLowerCornerByIndex(int index);
+	POINT pixelUpperCornerByIndex(int index);
+	POINT printCharOnDC(CharInfo symbol, POINT lowLeftAngle, int indexLine);
 	void processorVkLeft();
 	void processorWkRight();
 	void recoveryImagesAddress();
@@ -115,21 +127,6 @@ private:
 	void validateRectsForPaint();
 	void updateCaret(int index);
 	void updateCaretSize();
-public:
-	ContentOfWindow(HWND hWnd);
-	~ContentOfWindow(void);
-	void CaretPosByCoordinates(LPARAM lParam);
-	void drawText();
-	void invertSelectionFlag();
-	bool leftMouseIsPress(){return leftMouseButtonPressed;};
-	void mouseSelection(WPARAM wParam, LPARAM lParam);
-	void processorArrows(WPARAM wParam);
-	bool processorMenuMessages(WORD id);
-	void processorWmChar(WORD wParam);
-	void setSizeAreaType(LPARAM param);
-	void setStartForSelection(LPARAM lParam);
-	void leftMouseModePress(bool mode){this->leftMouseButtonPressed = mode;}
-	void workWithCaret(WORD message);
 };
 
 inline void ContentOfWindow::invertSelectionFlag()

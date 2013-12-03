@@ -64,7 +64,8 @@ ContentOfWindow::ContentOfWindow(HWND hWnd)
 	this->changeFontFlag = false;
 	this->canWorkWithSelected = false;
 	this->shiftCaretAfterDrawing = 0;
-	this->currentFont = (HFONT) GetStockObject(DEFAULT_GUI_FONT);
+	//this->currentFont = (HFONT) GetStockObject(DEFAULT_GUI_FONT);
+	this->currentFont = (HFONT) GetStockObject(SYSTEM_FIXED_FONT);
 	hDC = GetDC(hWnd);
 	//SelectObject(hDC, GetStockObject(SYSTEM_FIXED_FONT));
 	GetClientRect(hWnd, &clientRect);
@@ -510,12 +511,14 @@ void ContentOfWindow::changeFont()
 	// Initialize CHOOSEFONT
 	ZeroMemory(&cf, sizeof(cf));
 	ZeroMemory(&lf, sizeof(lf));
-	cf.nSizeMin = 14;
+	cf.nSizeMin = 14; //когда оба инициализируем, идея Макса сработала
+	cf.nSizeMax = 72;
 	cf.lStructSize = sizeof (cf);
 	cf.hwndOwner = hWnd;
 	cf.lpLogFont = &lf;
 	cf.rgbColors = rgbCurrent;
-	cf.Flags = CF_SCREENFONTS | CF_EFFECTS | CF_TTONLY; //| CF_LIMITSIZE;
+	cf.Flags = CF_SCREENFONTS | CF_EFFECTS | CF_TTONLY | CF_FIXEDPITCHONLY	| CF_LIMITSIZE;
+	//CF_FIXEDPITCHONLY - фиксированная ширина
 	if (ChooseFont(&cf)==TRUE)
 	{
 		hfont = CreateFontIndirect(cf.lpLogFont);
