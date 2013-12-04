@@ -71,6 +71,7 @@ ContentOfWindow::ContentOfWindow(HWND hWnd)
 	GetClientRect(hWnd, &clientRect);
 	Gdiplus::GdiplusStartupInput gdiplusStartupInput;
     Gdiplus::GdiplusStartup(&gdiplusToken, &gdiplusStartupInput, NULL);
+	scale = 1;
 }
 
 ContentOfWindow::~ContentOfWindow(void)
@@ -89,6 +90,21 @@ void ContentOfWindow::CaretPosByCoordinates(LPARAM lParam)
 	caretIndex = indexByCaret(pixel);
 	updateCaret(caretIndex);
 	drawCaret(caretIndex);
+}
+
+void ContentOfWindow::changeScalling(WPARAM wparam)
+{
+	if (GET_KEYSTATE_WPARAM(wparam) == MK_CONTROL)
+	{
+		if (GET_WHEEL_DELTA_WPARAM(wparam) > 0 )
+		{
+			increaseScale();
+		}
+		else
+		{
+			decreaseScale();
+		}
+	}
 }
 
 void ContentOfWindow::drawText()
@@ -551,6 +567,38 @@ void ContentOfWindow::changeFont()
 	InvalidateRect(hWnd, NULL, TRUE);
 }
 
+void ContentOfWindow::decreaseScale()
+{
+	int oldscale = scale;
+	scale -= 0.1;
+	if (scale < 0.5)
+	{
+		scale = 0.5;
+	}
+	if (oldscale != scale)
+	{
+		scallingFont();
+	}
+	InvalidateRect(hWnd, NULL, true);
+}
+
+void ContentOfWindow::increaseScale()
+{
+	int oldscale = scale;
+	{
+	scale += 0.1;
+	}
+	if (scale > 2)
+	{
+		scale = 2;
+	}
+	if (oldscale != scale)
+	{
+		scallingFont();
+	}
+	InvalidateRect(hWnd, NULL, true);
+}
+
 bool ContentOfWindow::deleteSelectedText()
 {
 	bool result = false;
@@ -795,6 +843,28 @@ int ContentOfWindow::numberLineByIndex(int index)
 		result = lines.size() - 1;
 	}
 	return result;
+}
+
+void ContentOfWindow::scallingFont()
+{
+	LOGFONT scaledfont;
+	for (int i = 0; i < text.size(); i++)
+	{
+		HFONT hfont = text.at(i).font;
+		ZeroMemory(&scaledfont,sizeof(LOGFONT));
+		GetObject(hfont,sizeof(LOGFONT), &scaledfont);
+		scaledfont.lfHeight = scaledfont.lfHeight * scale;
+		scaledfont.lfWidth = scaledfont.lfWidth * scale;
+		hfont = CreateFontIndirect(&scaledfont);
+		text.at(i).font = hfont;
+	}
+	HFONT hfont = currentFont;
+		ZeroMemory(&scaledfont,sizeof(LOGFONT));
+		GetObject(hfont,sizeof(LOGFONT), &scaledfont);
+		scaledfont.lfHeight = scaledfont.lfHeight * scale;
+		scaledfont.lfWidth = scaledfont.lfWidth * scale;
+		hfont = CreateFontIndirect(&scaledfont);
+		currentFont = hfont;
 }
 
 /*

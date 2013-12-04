@@ -38,6 +38,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	case WM_SETFOCUS:
 		content->workWithCaret(message);
 		break;
+	case WM_MOUSEWHEEL:
+		content->changeScalling(wParam);
+		break;
 	case WM_KILLFOCUS:
 		content->workWithCaret(message);
 		break;

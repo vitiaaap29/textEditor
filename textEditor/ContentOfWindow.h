@@ -8,6 +8,8 @@
 using namespace std;
 using namespace Gdiplus;
 
+static int wheelDelta = 0;
+
 class ContentOfWindow
 {
 	struct CharInfo
@@ -56,13 +58,13 @@ class ContentOfWindow
 		int countSymbols;
 		int countImages;
 		int sizeInBytes;
-	public:
-		//SaverText(int countSymbols, int countImages, vector<Gdiplus::Image> *images, vector<CharInfo> text);
 	};
+
 public:
 	ContentOfWindow(HWND hWnd);
 	~ContentOfWindow(void);
 	void CaretPosByCoordinates(LPARAM lParam);
+	void changeScalling(WPARAM wparam);
 	void drawText();
 	void invertSelectionFlag();
 	void mouseSelection(WPARAM wParam, LPARAM lParam);
@@ -75,6 +77,7 @@ public:
 
 private:
 	static const WORD SYMBOL_SIGN_PICTURES = 0x265E;
+	double scale;
 	int belowCharBaseLine;
 	bool leftMouseButtonPressed;
 	bool selectionFlag;
@@ -101,6 +104,8 @@ private:
 	bool belongsPixelToLineByX(POINT pixel, LineInfo line);
 	void calculateCharSize();
 	void calculateEndTextPos();
+	void decreaseScale();
+	void increaseScale();
 	bool indexIncludeSelectArea(int indexCaret);
 	void changeFont();
 	void changeFontText(int pos1,int pos2, HFONT font);
@@ -125,6 +130,7 @@ private:
 	void processorWkRight();
 	void recoveryImagesAddress();
 	void save();
+	void scallingFont();
 	bool setContentFromFile(wchar_t* filename);
 	void validateRectsForPaint();
 	void updateCaret(int index);
