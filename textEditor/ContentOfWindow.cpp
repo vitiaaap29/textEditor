@@ -170,7 +170,8 @@ void ContentOfWindow::processorArrows(WPARAM wParam)
 			{
 				LineInfo line = lines[numberLine];
 				int offsetInLine = caretIndex - line.startInText;
-				if (offsetInLine < lines[numberLine - 1].endInText)
+				int lengthPreviosLine = lines[numberLine - 1].endInText - lines[numberLine - 1].startInText;
+				if (offsetInLine < lengthPreviosLine)
 				{
 					caretIndex = lines[numberLine - 1].startInText + offsetInLine;
 				}
@@ -186,13 +187,21 @@ void ContentOfWindow::processorArrows(WPARAM wParam)
 			{
 				LineInfo line = lines[numberLine];
 				int offsetInLine = caretIndex - line.startInText;
-				if (offsetInLine < lines[numberLine + 1].endInText)
+				int lengthPreviosLine = lines[numberLine + 1].endInText - lines[numberLine + 1].startInText;
+				if (offsetInLine < lengthPreviosLine)
 				{
 					caretIndex = lines[numberLine + 1].startInText + offsetInLine;
 				}
 				else
 				{
-					caretIndex = lines[numberLine + 1].endInText;
+					if (numberLine + 1 != lines.size() - 1)
+					{
+						caretIndex = lines[numberLine + 1].endInText;
+					}
+					else
+					{
+						caretIndex = text.size() - 1;
+					}
 				}
 			}
 			break;
@@ -316,13 +325,6 @@ void ContentOfWindow::processorWmChar(WORD wParam)
 			getLinesInfo();
 		}
 		break;
-	case '\t':
-		deleteSelectedText();
-		for (int i = 0; i < 4; i++)
-		{
-			addCharToText(L' ');
-		}
-		break;
 	default:
 		deleteSelectedText();
 		addCharToText(wParam);
@@ -429,6 +431,10 @@ void ContentOfWindow::addCharToText(WORD wParam, Gdiplus::Image* image)
 		else if (GetCharWidth32W(hDC, addedSymbol, addedSymbol, &iAbc))
 		{
 			charWidth = iAbc;
+		}
+		if (addedSymbol == '\t')
+		{
+			charWidth *= 4;
 		}
 		pCharInfo->SetSizeX(charWidth);
 	}
@@ -935,6 +941,15 @@ POINT ContentOfWindow::printCharOnDC(CharInfo symbol, POINT lowLeftAngle,  int i
 		if (symbol.GetImage() == NULL)
 		{
 			TextOut(hDC, lowLeftAngle.x, lineInfo.baseLineY - (symbol.GetSize().y - symbol.belowBaseLine), printedChar, 1);
+			if (symbol.GetSymbol() == '\t')
+			{
+				for (int i = 1; i < COUNT_SPACE_IN_TAB; i++)
+				{
+					int x = lowLeftAngle.x + i * symbol.GetSize().x / 4;
+					int y = lineInfo.baseLineY - (symbol.GetSize().y - symbol.belowBaseLine);
+					TextOut(hDC, x, y, printedChar, 1);
+				}
+			}
 		}
 		else
 		{
@@ -1115,14 +1130,4 @@ void ContentOfWindow::validateRectsForPaint()
 	lastLineRect.right = lastLine.lengthByX ;
 	lastLineRect.bottom = lastLineRect.top + lastLine.heigth;
 	ValidateRect(hWnd,&lastLineRect);
-}
-
-bool operator==(POINT a, POINT b)
-{
-	bool result = false;
-	if (a.x == a.y && b.x == b.y)
-	{
-		result = true;
-	}
-	return result;
 }

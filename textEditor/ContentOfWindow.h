@@ -75,6 +75,7 @@ public:
 
 private:
 	static const WORD SYMBOL_SIGN_PICTURES = 0x265E;
+	static const int COUNT_SPACE_IN_TAB = 4;
 	int belowCharBaseLine;
 	bool leftMouseButtonPressed;
 	bool selectionFlag;
